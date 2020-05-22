@@ -346,6 +346,40 @@ ssize_t isFull(struct inode *dir)
         return 0;
 } 
 
+void findParentOfIno(struct inode *dir, unsigned long inoDepart, unsigned long inoToFind)
+{
+        unsigned long ino = inoDepart, i = 0;
+        struct super_block *sb = dir->i_sb;
+        struct buffer_head *bh = NULL;
+	struct ouichefs_dir_block *dir_block = NULL;
+        struct inode *inode = NULL;
+        struct dentry *dentry = NULL;
+
+        inode = ouichefs_iget(sb, ino);
+        dentry = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
+        pr_info("NAME INO%lu = %s\n", ino, dentry->d_name.name);
+        
+        /* Read parent directory index and put in RAM from the disk*/
+	bh = sb_bread(sb, OUICHEFS_INODE(inode)->index_block);
+
+        /* Get the block ifself */
+	dir_block = (struct ouichefs_dir_block *)bh->b_data;
+
+	/* Search for inode in parent index and get number of subfiles */
+	//for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
+        while(i < OUICHEFS_MAX_SUBFILES && dir_block->files[i].inode != 0){               
+                ino = dir_block->files[i].inode;
+                inode = ouichefs_iget(sb, ino);                
+                if ((S_IFDIR | 0755) == inode->i_mode){
+                        findParentOfIno(dir, ino, 0);
+                }
+                else {
+                        pr_info("files[%lu] => inode = %lu et filename = %s\n", i, ino, dir_block->files[i].filename);
+                }
+                ++i;       
+	}
+}
+
 void findOldest(struct inode *dir)
 {
         struct inode *inode = NULL;
@@ -355,27 +389,7 @@ void findOldest(struct inode *dir)
         
 ////////////////////////////////////////
 
-        int i;
-        struct super_block *sb = dir->i_sb;
-        struct buffer_head *bh = NULL;
-	struct ouichefs_dir_block *dir_block = NULL;
-
-        inode = ouichefs_iget(dir->i_sb, ino);
-        dentry = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
-        pr_info("NAME INO0 = %s\n", dentry->d_name.name);
-        
-        /* Read parent directory index */
-	bh = sb_bread(sb, OUICHEFS_INODE(inode)->index_block);
-	if (!bh)
-		return -EIO;
-	dir_block = (struct ouichefs_dir_block *)bh->b_data;
-
-	/* Search for inode in parent index and get number of subfiles */
-	for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
-                pr_info("dir_block->files[%d].inode = %lu\n", i, dir_block->files[i].inode);
-                pr_info("dir_block->files[%d].filename = %s\n", i, dir_block->files[i].filename);
-                
-	}
+        findParentOfIno(dir, 0, 0);
 
 
 /////////////////////////////////////////////
@@ -414,7 +428,7 @@ void findOldest(struct inode *dir)
                 if(inode->i_dentry.first != NULL){ // 
                         dentry = hlist_entry(inode->i_dentry.first, 
                                                    struct dentry, d_u.d_alias);
-                        ouichefs_unlink(dentry->d_parent->d_inode, dentry);
+                        //ouichefs_unlink(dentry->d_parent->d_inode, dentry);
                 }
                 else{
                         pr_info("inode->i_dentry.first @ %p\n",  inode->i_dentry.first);
