@@ -353,6 +353,36 @@ void findOldest(struct inode *dir)
         struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
         unsigned long ino = 0, min = ULONG_MAX, ino_ancien = 0;
         
+
+
+        int i;
+        struct super_block *sb = dir->i_sb;
+        struct buffer_head *bh = NULL;
+	struct ouichefs_dir_block *dir_block = NULL;
+
+        inode = ouichefs_iget(dir->i_sb, ino);
+        dentry = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
+        pr_info("NAME INO0 = %s\n", dentry->d_name.name);
+        
+        /* Read parent directory index */
+	bh = sb_bread(sb, OUICHEFS_INODE(inode)->index_block);
+	if (!bh)
+		return -EIO;
+	dir_block = (struct ouichefs_dir_block *)bh->b_data;
+
+	/* Search for inode in parent index and get number of subfiles */
+	for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
+                pr_info("dir_block->files[%d].inode = %lu\n", i, dir_block->files[i].inode);
+                pr_info("dir_block->files[%d].filename = %s\n", i, dir_block->files[i].filename);
+                
+	}
+
+
+
+
+
+
+
         
         while(++ino < sbi->nr_inodes){
                 ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
