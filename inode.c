@@ -351,7 +351,7 @@ void findOldest(struct inode *dir)
         struct inode *inode = NULL;
         struct dentry *dentry = NULL;
         struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
-        unsigned long ino = 1, min = ULONG_MAX, ino_ancien = 0;
+        unsigned long ino = 0, min = ULONG_MAX, ino_ancien = 0;
         
         
         while(++ino < sbi->nr_inodes){
@@ -359,6 +359,9 @@ void findOldest(struct inode *dir)
                 
                 if(ino < sbi->nr_inodes){
                         inode = ouichefs_iget(dir->i_sb, ino);
+                        
+                        if (!((S_IFREG | 0644) == inode->i_mode)) // si pas fichier
+                                continue;
 
                         if(inode->i_mtime.tv_sec < min){
                                 min = inode->i_mtime.tv_sec;
@@ -372,17 +375,21 @@ void findOldest(struct inode *dir)
 
         pr_info("Le plus ancien est l'ino #%lu\n", ino_ancien);
 
-        inode = ouichefs_iget(dir->i_sb, ino_ancien);     
-        pr_info("@ inode ancienne ==> %p\n", inode); 
-        pr_info("inode->i_dentry @ %p\n",  &inode->i_dentry);
-        pr_info("inode->i_dentry.first @ %p\n",  inode->i_dentry.first);
-        dentry = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
-        pr_info("dentry.d_name.name : %s\n",  dentry->d_name.name);
-        
-        if(ino_ancien > 0)
-                ouichefs_unlink(dentry->d_parent->d_inode, dentry);
-        //inode_dec_link_count(inode);
-        //dentry_temp = ouichefs_lookup(inode, dentry, 0);
+        if(ino_ancien > 0){
+                inode = ouichefs_iget(dir->i_sb, ino_ancien);     
+                pr_info("@ inode ancienne ==> %p\n", inode); 
+                pr_info("inode->i_dentry @ %p\n",  &inode->i_dentry);
+
+
+                if(inode->i_dentry.first != NULL){ // 
+                        dentry = hlist_entry(inode->i_dentry.first, 
+                                                   struct dentry, d_u.d_alias);
+                        ouichefs_unlink(dentry->d_parent->d_inode, dentry);
+                }
+                else{
+                        pr_info("inode->i_dentry.first @ %p\n",  inode->i_dentry.first);
+                }
+        }
 }
 
 void cleanIt(struct inode *dir)
