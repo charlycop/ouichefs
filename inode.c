@@ -369,7 +369,8 @@ void findParentOfIno(struct inode *dir, unsigned long inoDepart, unsigned long i
 	//for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
         while(i < OUICHEFS_MAX_SUBFILES && dir_block->files[i].inode != 0){               
                 ino = dir_block->files[i].inode;
-                inode = ouichefs_iget(sb, ino);                
+                inode = ouichefs_iget(sb, ino);  
+              
                 if ((S_IFDIR | 0755) == inode->i_mode){
                         findParentOfIno(dir, ino, 0);
                 }
@@ -380,24 +381,13 @@ void findParentOfIno(struct inode *dir, unsigned long inoDepart, unsigned long i
 	}
 }
 
-void findOldest(struct inode *dir)
+unsigned long findOldest(struct inode *dir)
 {
         struct inode *inode = NULL;
-        struct dentry *dentry = NULL;
         struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
         unsigned long ino = 0, min = ULONG_MAX, ino_ancien = 0;
         
-////////////////////////////////////////
 
-        findParentOfIno(dir, 0, 0);
-
-
-/////////////////////////////////////////////
-
-
-
-
-        
         while(++ino < sbi->nr_inodes){
                 ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
                 
@@ -419,26 +409,39 @@ void findOldest(struct inode *dir)
 
         pr_info("Le plus ancien est l'ino #%lu\n", ino_ancien);
 
-        if(ino_ancien > 0){
-                inode = ouichefs_iget(dir->i_sb, ino_ancien);     
-                pr_info("@ inode ancienne ==> %p\n", inode); 
-                pr_info("inode->i_dentry @ %p\n",  &inode->i_dentry);
+        return ino_ancien;
+}
+
+void shredIt(struct inode *dir, unsigned long ino){
+      
+        struct inode *inodeToDelete = NULL, *inodeParent = NULL;
+        struct dentry *dentry = NULL;
+
+        inodeToDelete = ouichefs_iget(dir->i_sb, ino);     
+        pr_info("@ inode ancienne ==> %p\n", inodeToDelete); 
+        pr_info("inode->i_dentry @ %p\n",  &inodeToDelete->i_dentry);
 
 
-                if(inode->i_dentry.first != NULL){ // 
-                        dentry = hlist_entry(inode->i_dentry.first, 
-                                                   struct dentry, d_u.d_alias);
-                        //ouichefs_unlink(dentry->d_parent->d_inode, dentry);
-                }
-                else{
-                        pr_info("inode->i_dentry.first @ %p\n",  inode->i_dentry.first);
-                }
+        if(inodeToDelete->i_dentry.first != NULL){ // si dentry : on fait unlink direct
+                dentry = hlist_entry(inodeToDelete->i_dentry.first, 
+                                           struct dentry, d_u.d_alias);
+                //ouichefs_unlink(dentry->d_parent->d_inode, dentry);
         }
+        else{  
+                findParentOfIno(dir, 0, 0);
+                pr_info("inode->i_dentry.first @ %p\n",  inodeToDelete->i_dentry.first);
+        }
+        
 }
 
 void cleanIt(struct inode *dir)
 {
-        findOldest(dir);
+        unsigned long ino = findOldest(dir);
+                      
+        if(!ino)
+                return;
+
+        shredIt(dir, ino);
 
 }
 
