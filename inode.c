@@ -414,9 +414,6 @@ unsigned long findOldest(struct inode *dir)
                                 min = inode->i_mtime.tv_sec;
                                 ino_ancien = ino;
                         }
-
-                        pr_info("find_next_zero_bit : %lu\n", ino);
-                        pr_info("inode->i_mtime : %lld\n", inode->i_mtime.tv_sec);
                 }
         }
 
@@ -434,12 +431,11 @@ void shredIt(struct inode *dir, unsigned long ino){
         unsigned long parent = 0;
 
         inodeToDelete = ouichefs_iget(sb, ino);     
-        pr_info("@ inode ancienne ==> %p\n", inodeToDelete); 
-        pr_info("inode->i_dentry @ %p\n",  &inodeToDelete->i_dentry);
 
         if(inodeToDelete->i_dentry.first != NULL){ // si dentry : on fait unlink direct
                 dentry = hlist_entry(inodeToDelete->i_dentry.first, 
                                            struct dentry, d_u.d_alias);
+                // DILEMME UTILISE-T-ON UNLINK pour montrer qu'on a bien capter la diff' ?
                 //ouichefs_unlink(dentry->d_parent->d_inode, dentry);
         }
         else{  
