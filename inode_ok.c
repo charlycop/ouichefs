@@ -319,14 +319,106 @@ clean_inode:
 
 static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 {
-
+//	struct super_block *sb = dir->i_sb;
+//	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
 	struct inode *inode = d_inode(dentry);
-
+//	struct buffer_head *bh = NULL, *bh2 = NULL;
+//	struct ouichefs_dir_block *dir_block = NULL;
+//	struct ouichefs_file_index_block *file_block = NULL;
+//	uint32_t ino, bno;
+//	int i, f_id = -1, nr_subs = 0;
+        
+        
         pr_info("inode : %p, dir : %p\n", inode, dir);
+        
+        
+	//ino = inode->i_ino;
+	//bno = OUICHEFS_INODE(inode)->index_block;
+
+//	/* Read parent directory index */
+//	bh = sb_bread(sb, OUICHEFS_INODE(dir)->index_block);
+//	if (!bh)
+//		return -EIO;
+//	dir_block = (struct ouichefs_dir_block *)bh->b_data;
+//
+//	/* Search for inode in parent index and get number of subfiles */
+//	for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
+//		if (dir_block->files[i].inode == ino)
+//			f_id = i;
+//		else if (dir_block->files[i].inode == 0)
+//			break;
+//	}
+//	nr_subs = i;
+//
+//	/* Remove file from parent directory */
+//	if (f_id != OUICHEFS_MAX_SUBFILES - 1)
+//		memmove(dir_block->files + f_id,
+//			dir_block->files + f_id + 1,
+//			(nr_subs - f_id - 1) * sizeof(struct ouichefs_file));
+//	memset(&dir_block->files[nr_subs - 1],
+//	       0, sizeof(struct ouichefs_file));
+//	mark_buffer_dirty(bh);
+//	brelse(bh);
+//
+//	/* Update inode stats */
+//	dir->i_mtime = dir->i_atime = dir->i_ctime = current_time(dir);
+//	if (S_ISDIR(inode->i_mode))
+//		inode_dec_link_count(dir);
+//	mark_inode_dirty(dir);
+
+//	/*
+//	 * Cleanup pointed blocks if unlinking a file. If we fail to read the
+//	 * index block, cleanup inode anyway and lose this file's blocks
+//	 * forever. If we fail to scrub a data block, don't fail (too late
+//	 * anyway), just put the block and continue.
+//	 */
+//	bh = sb_bread(sb, bno);
+//	if (!bh)
+//		goto clean_inode;
+//	file_block = (struct ouichefs_file_index_block *)bh->b_data;
+//	if (S_ISDIR(inode->i_mode))
+//		goto scrub;
+//	for (i = 0; i < inode->i_blocks - 1; i++) {
+//		char *block;
+//
+//		if(!file_block->blocks[i])
+//			continue;
+//
+//		put_block(sbi, file_block->blocks[i]);
+//		bh2 = sb_bread(sb, file_block->blocks[i]);
+//		if (!bh2)
+//			continue;
+//		block = (char *)bh2->b_data;
+//		memset(block, 0, OUICHEFS_BLOCK_SIZE);
+//		mark_buffer_dirty(bh2);
+//		brelse(bh2);
+//	}
+//
+//scrub:
+//	/* Scrub index block */
+//	memset(file_block, 0, OUICHEFS_BLOCK_SIZE);
+//	mark_buffer_dirty(bh);
+//	brelse(bh);
+//
+//clean_inode:
+//	/* Cleanup inode and mark dirty */
+//	inode->i_blocks = 0;
+//	OUICHEFS_INODE(inode)->index_block = 0;
+//	inode->i_size = 0;
+//	i_uid_write(inode, 0);
+//	i_gid_write(inode, 0);
+//	inode->i_mode = 0;
+//	inode->i_ctime.tv_sec =
+//		inode->i_mtime.tv_sec =
+//		inode->i_atime.tv_sec = 0;
+//	mark_inode_dirty(inode);
+//
+//	/* Free inode and index block from bitmap */
+//	put_block(sbi, bno);
+//	put_inode(sbi, ino);
 
 	return scrubAndClean(dir, inode);
 }
-
 
 
 /*
@@ -354,7 +446,7 @@ ssize_t isFull(struct inode *dir)
 } 
 
 unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
-                                unsigned long inoToFind)
+                                unsigned long inoToFind, unsigned long *noCase)
 {
         unsigned long ino = inoParent, i = 0, res = 0;
         struct super_block *sb = dir->i_sb;
@@ -381,12 +473,13 @@ unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
                 inode = ouichefs_iget(sb, ino);  
               
                 if ((S_IFDIR | 0755) == inode->i_mode){
-                        res = findParentOfIno(dir, ino, inoToFind);
+                        res = findParentOfIno(dir, ino, inoToFind, noCase);
                         if(res > 0)
                                 return res;
                 }
                 else if (ino == inoToFind){
                         pr_info("On a trouvé le parent ino = %lu\n", inoParent);
+                        *noCase = i;
                         return inoParent; // on renvoie le parent
                 }
                 ++i;       
@@ -429,14 +522,20 @@ unsigned long findOldest(struct inode *dir)
 void shredIt(struct inode *dir, unsigned long ino){
       
         struct super_block *sb = dir->i_sb;
+	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
         struct inode *inodeToDelete = NULL, *inodeParent = NULL;
         struct dentry *dentry = NULL;
+        struct buffer_head *bh = NULL, *bh2 = NULL;
+        struct ouichefs_dir_block *dir_block = NULL;
+        struct ouichefs_file_index_block *file_block = NULL;
 
-        unsigned long parent = 0;
+        unsigned long parent = 0, noCase = 0, i, f_id = 0, nr_subs = 0;
+        uint32_t bno;
 
         inodeToDelete = ouichefs_iget(sb, ino);     
         pr_info("@ inode ancienne ==> %p\n", inodeToDelete); 
         pr_info("inode->i_dentry @ %p\n",  &inodeToDelete->i_dentry);
+
 
         if(inodeToDelete->i_dentry.first != NULL){ // si dentry : on fait unlink direct
                 dentry = hlist_entry(inodeToDelete->i_dentry.first, 
@@ -444,11 +543,95 @@ void shredIt(struct inode *dir, unsigned long ino){
                 //ouichefs_unlink(dentry->d_parent->d_inode, dentry);
         }
         else{  
-                parent = findParentOfIno(dir, 0, ino);
+                parent = findParentOfIno(dir, 0, ino, &noCase);
+                pr_info("Parent trouvé ino : %lu et case : %lu\n", parent, noCase);
+                
+
+                /* Read parent directory index */
                 inodeParent = ouichefs_iget(sb, parent);
-                pr_info("Parent trouvé ino : %lu\n", parent);
-                                
-                scrubAndClean(inodeParent, inodeToDelete);
+                bh = sb_bread(sb, OUICHEFS_INODE(inodeParent)->index_block);
+                if (!bh)
+	                return;
+                dir_block = (struct ouichefs_dir_block *)bh->b_data;
+
+                /* Search for inode in parent index and get number of subfiles */
+                for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
+	                if (dir_block->files[i].inode == ino)
+		                f_id = i;
+	                else if (dir_block->files[i].inode == 0)
+		                break;
+                }
+                nr_subs = i;
+                
+                /* Remove file from parent directory */
+                if (f_id != OUICHEFS_MAX_SUBFILES - 1)
+                        memmove(dir_block->files + f_id,
+                                dir_block->files + f_id + 1,
+                                (nr_subs - f_id - 1) * sizeof(struct ouichefs_file));
+                
+                memset(&dir_block->files[nr_subs - 1],
+                        0, sizeof(struct ouichefs_file));
+                mark_buffer_dirty(bh);
+                brelse(bh);
+                
+                /* Update inode stats */
+	        inodeParent->i_mtime = inodeParent->i_atime = inodeParent->i_ctime = current_time(inodeParent);
+	        if (S_ISDIR(inodeToDelete->i_mode))
+		        inode_dec_link_count(inodeParent);
+	        mark_inode_dirty(inodeParent);
+
+                
+                /*
+	         * Cleanup pointed blocks if unlinking a file. If we fail to read the
+	         * index block, cleanup inode anyway and lose this file's blocks
+	         * forever. If we fail to scrub a data block, don't fail (too late
+	         * anyway), just put the block and continue.
+	         */
+                bno = OUICHEFS_INODE(inodeToDelete)->index_block;
+	        bh = sb_bread(sb, bno);
+	        if (!bh)
+		        goto clean_inode;
+	        file_block = (struct ouichefs_file_index_block *)bh->b_data;
+	        if (S_ISDIR(inodeToDelete->i_mode))
+		        goto scrub;
+	        for (i = 0; i < inodeToDelete->i_blocks - 1; i++) {
+		        char *block;
+
+		        if(!file_block->blocks[i])
+			        continue;
+
+		        put_block(sbi, file_block->blocks[i]);
+		        bh2 = sb_bread(sb, file_block->blocks[i]);
+		        if (!bh2)
+			        continue;
+		        block = (char *)bh2->b_data;
+		        memset(block, 0, OUICHEFS_BLOCK_SIZE);
+		        mark_buffer_dirty(bh2);
+		        brelse(bh2);
+	        }
+
+        scrub:
+                /* Scrub index block */
+                memset(file_block, 0, OUICHEFS_BLOCK_SIZE);
+                mark_buffer_dirty(bh);
+                brelse(bh);
+                
+        clean_inode:
+	        /* Cleanup inode and mark dirty */
+	        inodeToDelete->i_blocks = 0;
+	        OUICHEFS_INODE(inodeToDelete)->index_block = 0;
+	        inodeToDelete->i_size = 0;
+	        i_uid_write(inodeToDelete, 0);
+	        i_gid_write(inodeToDelete, 0);
+	        inodeToDelete->i_mode = 0;
+	        inodeToDelete->i_ctime.tv_sec =
+		        inodeToDelete->i_mtime.tv_sec =
+		        inodeToDelete->i_atime.tv_sec = 0;
+	        mark_inode_dirty(inodeToDelete);
+
+	        /* Free inode and index block from bitmap */
+	        put_block(sbi, bno);
+	        put_inode(sbi, ino);
         }      
 }
 
