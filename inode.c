@@ -375,7 +375,7 @@ unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
               
-                if ((S_IFDIR | 0755) == inode->i_mode){
+                if (S_ISDIR(inode->i_mode)){
                         pr_info("On entre dans dossier : /%s\n", 
                                                  dir_block->files[i].filename);
                         res = findParentOfIno(dir, ino, inoToFind);
