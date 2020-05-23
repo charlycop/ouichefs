@@ -15,7 +15,7 @@
 #define OUICHEFS_MAX_FILESIZE     (1 << 22)  /* 4 MiB */
 #define OUICHEFS_FILENAME_LEN            28
 #define OUICHEFS_MAX_SUBFILES           128
-#define OUICHEFS_MAX_USAGE               95
+#define OUICHEFS_MIN_SPACE               5
 
 
 /*

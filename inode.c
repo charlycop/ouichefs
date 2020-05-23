@@ -257,7 +257,8 @@ int scrubAndClean(struct inode *parentInode, struct inode *childInode)
 	brelse(bh);
 
 	/* Update inode stats */
-	parentInode->i_mtime = parentInode->i_atime = parentInode->i_ctime = current_time(parentInode);
+	parentInode->i_mtime = parentInode->i_atime = parentInode->i_ctime = 
+                                                  current_time(parentInode);
 	if (S_ISDIR(childInode->i_mode))
 		inode_dec_link_count(parentInode);
 	mark_inode_dirty(parentInode);
@@ -321,14 +322,8 @@ clean_inode:
 
 static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 {
-
-	struct inode *inode = d_inode(dentry);
-
-        pr_info("inode : %p, dir : %p\n", inode, dir);
-
-	return scrubAndClean(dir, inode);
+	return scrubAndClean(dir, d_inode(dentry));
 }
-
 
 
 /*
@@ -337,20 +332,23 @@ static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
  */
 ssize_t isFull(struct inode *dir)
 {       
-        uint32_t usage, nb_blocks_full;
+        uint32_t space, nb_blocks_full;
 
         struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
              
         nb_blocks_full = sbi->nr_blocks - sbi->nr_free_blocks;        
-        usage = (nb_blocks_full*100) / sbi->nr_blocks;
+        space = (sbi->nr_free_blocks*100)/sbi->nr_blocks;
         
-        if(sbi->nr_blocks % nb_blocks_full)
-                ++usage;
+        
+        if(sbi->nr_blocks % sbi->nr_free_blocks)
+                --space;
                 
-        if (usage > OUICHEFS_MAX_USAGE){
-                pr_warning("Limite de stockage critique (%u%c) !\n", usage,'%');
+        if (space < OUICHEFS_MIN_SPACE){
+                pr_warning("Limite de stockage critique (%u%c) !\n", space,'%');
                 return 1;
         }
+        
+        pr_info("Partition free space :  %u%c .... OK!\n", space,'%');
 
         return 0;
 } 
@@ -378,14 +376,16 @@ unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
                 inode = ouichefs_iget(sb, ino);  
               
                 if ((S_IFDIR | 0755) == inode->i_mode){
-                        pr_info("On entre dans dossier : /%s\n", dir_block->files[i].filename);
+                        pr_info("On entre dans dossier : /%s\n", 
+                                                 dir_block->files[i].filename);
                         res = findParentOfIno(dir, ino, inoToFind);
                         
                         if(res > 0)
                                 return res;
                 }
                 else if (ino == inoToFind){
-                        pr_info("fichier : %s avec ino:%lu localisé!\n", dir_block->files[i].filename, ino);
+                        pr_info("fichier : %s avec ino:%lu localisé!\n",
+                                            dir_block->files[i].filename, ino);
                         return inoParent; // on renvoie le parent
                 }
                 ++i;       
@@ -675,9 +675,6 @@ relse_new:
 static int ouichefs_mkdir(struct inode *dir, struct dentry *dentry,
 			  umode_t mode)
 {
-
-        
-
 	return ouichefs_create(dir, dentry, mode | S_IFDIR, 0);
 }
 
