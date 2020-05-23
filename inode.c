@@ -245,7 +245,7 @@ int scrubAndClean(struct inode *parentInode, struct inode *childInode)
 			break;
 	}
 	nr_subs = i;
-
+        
 	/* Remove file from parent directory */
 	if (f_id != OUICHEFS_MAX_SUBFILES - 1)
 		memmove(dir_block->files + f_id,
@@ -313,6 +313,8 @@ clean_inode:
 	put_block(sbi, bno);
 	put_inode(sbi, ino);
 
+        pr_info("Fichier supprimé avec succès!\n");
+
         return 0;
 
 }
@@ -362,12 +364,8 @@ unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
 	struct ouichefs_dir_block *dir_block = NULL;
         struct inode *inode = NULL;
         
-        //struct dentry *dentry = NULL;
-        pr_info("On est la 1\n");
         inode = ouichefs_iget(sb, ino);
-        //dentry = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
-        pr_info("DIR INO%lu\n", ino);
-        
+
         /* Read parent directory index and put in RAM from the disk*/
 	bh = sb_bread(sb, OUICHEFS_INODE(inode)->index_block);
 
@@ -375,18 +373,19 @@ unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
 	dir_block = (struct ouichefs_dir_block *)bh->b_data;
 
 	/* Search for inode in parent index and get number of subfiles */
-	//for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
         while(i < OUICHEFS_MAX_SUBFILES && dir_block->files[i].inode != 0){               
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
               
                 if ((S_IFDIR | 0755) == inode->i_mode){
+                        pr_info("On entre dans dossier : /%s\n", dir_block->files[i].filename);
                         res = findParentOfIno(dir, ino, inoToFind);
+                        
                         if(res > 0)
                                 return res;
                 }
                 else if (ino == inoToFind){
-                        pr_info("On a trouvé le parent ino = %lu\n", inoParent);
+                        pr_info("fichier : %s avec ino:%lu localisé!\n", dir_block->files[i].filename, ino);
                         return inoParent; // on renvoie le parent
                 }
                 ++i;       
