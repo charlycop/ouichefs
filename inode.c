@@ -610,18 +610,10 @@ ssize_t cleanIt(struct inode *dir, uint8_t flag)
 
         pr_info ("valeur de policy.val %d\n",policy.val);
 
-	if(policy.val == 0){
-                if(flag)
-                        ino = findOldestInDir(dir);
-                else
-                        ino = findOldestInPartition(dir);
-	}else if (policy.val == 1){
-                if(flag)
-                        ino = findBigestInDir(dir);
-
-                else
-                        ino = findBigestInPartition(dir);
-        }
+	if(policy.val == 0)
+                ino = (flag) ? findOldestInDir(dir) : findOldestInPartition(dir);
+	else if (policy.val == 1)
+                ino = (flag) ? findBigestInDir(dir) : findBigestInPartition(dir);
 
         if(!ino){
                 pr_warning("Error, cannot retrieve the Inode to delete!");
