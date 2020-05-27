@@ -14,6 +14,7 @@
 
 #include "ouichefs.h"
 #include "bitmap.h"
+//#include "cleaning.h" // Partition cleaning tools and policies
 
 static const struct inode_operations ouichefs_inode_ops;
 
@@ -445,8 +446,9 @@ unsigned long findOldestInDir(struct inode *dir)
         while(i < OUICHEFS_MAX_SUBFILES && dir_block->files[i].inode != 0){               
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
-              
-                if (S_ISDIR(inode->i_mode))
+                
+                // si pas fichier ou utilisé
+                if (S_ISDIR(inode->i_mode) || inode->i_count.counter)
                         continue;
                 
                 if(inode->i_mtime.tv_sec < min){
@@ -473,8 +475,8 @@ unsigned long findOldestInPartition(struct inode *dir)
                 
                 if(ino < sbi->nr_inodes){
                         inode = ouichefs_iget(dir->i_sb, ino);
-                        
-                        if (S_ISDIR(inode->i_mode)) // si pas fichier
+                         // si pas fichier ou utilisé
+                        if (S_ISDIR(inode->i_mode) || inode->i_count.counter)
                                 continue;
 
                         if(inode->i_mtime.tv_sec < min){
@@ -494,7 +496,7 @@ unsigned long findOldestInPartition(struct inode *dir)
  * dir : current directory of the file
  * flag : 0 search for parent, 1 parent is dir
  */
-void shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
+ssize_t shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
       
         struct super_block *sb = dir->i_sb;
         struct inode *inodeToDelete = NULL, *inodeParent = dir;
@@ -507,7 +509,7 @@ void shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
                 dentry = hlist_entry(inodeToDelete->i_dentry.first, 
                                            struct dentry, d_u.d_alias);
                 // DILEMME UTILISE-T-ON UNLINK pour montrer qu'on a bien capter la diff' ?
-                ouichefs_unlink(dentry->d_parent->d_inode, dentry);
+                return ouichefs_unlink(dentry->d_parent->d_inode, dentry);
         }
         else{  
                 if(!flag){
@@ -516,8 +518,10 @@ void shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
                 }
                 pr_info("Parent trouvé ino : %lu\n", parent);
                                 
-                scrubAndClean(inodeParent, inodeToDelete);
-        }      
+                return scrubAndClean(inodeParent, inodeToDelete);
+        }    
+        
+        return 1;  
 }
 
 
@@ -526,16 +530,17 @@ void shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
  * dir : current directory
  * flag : 0 for partition, 1 for dir
  */
-void cleanIt(struct inode *dir, uint8_t flag)
+ssize_t cleanIt(struct inode *dir, uint8_t flag)
 {
         unsigned long ino = (flag) ? 
                              findOldestInDir(dir) : findOldestInPartition(dir);
                       
-        if(!ino)
-                return;
+        if(!ino){
+                pr_warning("Error, cannot retrieve the oldest Inode!");
+                return 1;
+        }
 
-        shredIt(dir, ino, flag);
-
+        return shredIt(dir, ino, flag);
 }
 
 /*
@@ -560,10 +565,17 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 
         // Pour tester la partition
         if(isPartitionFull(dir))
-                cleanIt(dir, 0);   
-        
+                if(cleanIt(dir, 0)){
+                        pr_warning("Error during the partition cleaning!");
+                        return 1;                
+                }
+                        
+                           
         if(isDirFull(dir))
-                cleanIt(dir, 1);
+                if(cleanIt(dir, 1)){
+                        pr_warning("Error during the directory cleaning!");
+                        return 1;                
+                }
 
 
 	/* Check filename length */
