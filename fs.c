@@ -12,6 +12,10 @@
 #include <linux/fs.h>
 
 #include "ouichefs.h"
+#include "size.h"
+
+policies policy;
+EXPORT_SYMBOL(policy);
 
 /*
  * Mount a ouiche_fs partition

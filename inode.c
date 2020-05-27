@@ -12,9 +12,12 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 
+#include "size.h"
 #include "ouichefs.h"
 #include "bitmap.h"
 //#include "cleaning.h" // Partition cleaning tools and policies
+
+extern policies policy;
 
 static const struct inode_operations ouichefs_inode_ops;
 
@@ -448,8 +451,10 @@ unsigned long findOldestInDir(struct inode *dir)
                 inode = ouichefs_iget(sb, ino);  
                 
                 // si pas fichier ou utilisé
-                if (S_ISDIR(inode->i_mode) || inode->i_count.counter)
+                if (S_ISDIR(inode->i_mode) /*|| inode->i_count.counter*/){
+                        ++i;
                         continue;
+                }
                 
                 if(inode->i_mtime.tv_sec < min){
                         min = inode->i_mtime.tv_sec;
@@ -476,7 +481,7 @@ unsigned long findOldestInPartition(struct inode *dir)
                 if(ino < sbi->nr_inodes){
                         inode = ouichefs_iget(dir->i_sb, ino);
                          // si pas fichier ou utilisé
-                        if (S_ISDIR(inode->i_mode) || inode->i_count.counter)
+                        if (S_ISDIR(inode->i_mode) /*|| inode->i_count.counter*/)
                                 continue;
 
                         if(inode->i_mtime.tv_sec < min){
@@ -524,6 +529,75 @@ ssize_t shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
         return 1;  
 }
 
+unsigned long findBigestInDir(struct inode *dir)
+{
+        unsigned long ino, i = 0, max = 0, ino_biggest = 1;
+        struct super_block *sb = dir->i_sb;
+        struct buffer_head *bh = NULL;
+	struct ouichefs_dir_block *dir_block = NULL;
+        struct inode *inode = NULL;
+
+        /* Read parent directory index and put in RAM from the disk*/
+	bh = sb_bread(sb, OUICHEFS_INODE(dir)->index_block);
+
+        /* Get the block ifself */
+	dir_block = (struct ouichefs_dir_block *)bh->b_data;
+
+	/* Search for inode in parent index and get number of subfiles */
+        while(i < OUICHEFS_MAX_SUBFILES && dir_block->files[i].inode != 0){ 
+
+                ino = dir_block->files[i].inode;
+                inode = ouichefs_iget(sb, ino);  
+
+                // si pas fichier ou utilisé
+                if (S_ISDIR(inode->i_mode) /*|| inode->i_count.counter*/){
+                      ++i;
+                      continue;    
+                }
+                
+                if(inode->i_size > max){
+                        max = inode->i_size;
+                        ino_biggest = ino;
+                }
+                ++i;       
+	}
+
+        pr_info("The biggest file in this dir is ino#%lu\n", ino_biggest);
+
+        return ino_biggest;
+}
+
+unsigned long findBigestInPartition(struct inode *dir)
+{
+        struct inode *inode = NULL;
+        struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
+        unsigned long ino = 0, max = 0, ino_ancien = 0;
+        
+	pr_info("je suis dans le findBigest\n");
+
+        while(++ino < sbi->nr_inodes){
+                ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
+                
+                if(ino < sbi->nr_inodes){
+                        inode = ouichefs_iget(dir->i_sb, ino);
+                        
+                        // si pas fichier ou deja utilisé
+                        if (S_ISDIR(inode->i_mode) || inode->i_count.counter) 
+                                continue;
+
+                        if(inode->i_size > max){
+                                max = inode->i_size;
+                                ino_ancien = ino;
+                        }
+                }
+        }
+
+        pr_info("Le plus ancien est l'ino #%lu\n", ino_ancien);
+
+        return ino_ancien;
+}
+
+
 
 /*
  * Free the partition or the dir of the oldest file.
@@ -532,11 +606,25 @@ ssize_t shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
  */
 ssize_t cleanIt(struct inode *dir, uint8_t flag)
 {
-        unsigned long ino = (flag) ? 
-                             findOldestInDir(dir) : findOldestInPartition(dir);
-                      
+        unsigned long ino = 0;
+
+        pr_info ("valeur de policy.val %d\n",policy.val);
+
+	if(policy.val == 0){
+                if(flag)
+                        ino = findOldestInDir(dir);
+                else
+                        ino = findOldestInPartition(dir);
+	}else if (policy.val == 1){
+                if(flag)
+                        ino = findBigestInDir(dir);
+
+                else
+                        ino = findBigestInPartition(dir);
+        }
+
         if(!ino){
-                pr_warning("Error, cannot retrieve the oldest Inode!");
+                pr_warning("Error, cannot retrieve the Inode to delete!");
                 return 1;
         }
 
