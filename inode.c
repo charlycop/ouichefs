@@ -38,9 +38,10 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino)
 	/* Fail if ino is out of range */
 	if (ino >= sbi->nr_inodes)
 		return ERR_PTR(-EINVAL);
-
+        
 	/* Get a locked inode from Linux */
 	inode = iget_locked(sb, ino);
+        
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	/* If inode is in cache, return it */
@@ -48,8 +49,10 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino)
 		return inode;
 
 	ci = OUICHEFS_INODE(inode);
+
 	/* Read inode from disk and initialize */
 	bh = sb_bread(sb, inode_block);
+
 	if (!bh) {
 		ret = -EIO;
 		goto failed;
@@ -73,7 +76,6 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino)
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_blocks = le32_to_cpu(cinode->i_blocks);
 	set_nlink(inode, le32_to_cpu(cinode->i_nlink));
-
 	ci->index_block = le32_to_cpu(cinode->index_block);
 
 	if (S_ISDIR(inode->i_mode)) {
@@ -316,7 +318,13 @@ clean_inode:
 	/* Free inode and index block from bitmap */
 	put_block(sbi, bno);
 	put_inode(sbi, ino);
+        pr_info("childInode avant iput %d\n", childInode->i_count.counter);
+        iput(childInode);
+pr_info("childInode avant iput %d\n", childInode->i_count.counter);
+        pr_info("parentinode avant iput %d\n", parentInode->i_count.counter);
 
+        pr_info("parentinode apres iput %d\n", parentInode->i_count.counter);
+        
         pr_info("Fichier supprimé avec succès!\n");
 
         return 0;
@@ -449,25 +457,32 @@ unsigned long findOldestInDir(struct inode *dir)
 
 	/* Search for inode in parent index and get number of subfiles */
         while(i < OUICHEFS_MAX_SUBFILES && dir_block->files[i].inode != 0){               
+            
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
-                pr_info("inode->i_count.counter : %d\n", inode->i_count.counter);
-                pr_info("inode->i_dio_count.counter : %d\n", inode->i_dio_count.counter);
-                pr_info("inode->i_nlink : %u\n", inode->i_nlink);
+
+
+                //pr_info("inode->i_count.counter : %d\n", inode->i_count.counter);
+                //pr_info("inode->i_dio_count.counter : %d\n", inode->i_dio_count.counter);
+                //pr_info("inode->i_nlink : %u\n", inode->i_nlink);
 
                 // si pas fichier ou utilisé
                 if (S_ISDIR(inode->i_mode) /*|| inode->i_count.counter*/){
                         ++i;
                         continue;
                 }
-                
+
+                //pr_info("dir->i_count.counter : %d\n", dir->i_count.counter);
+
                 if(inode->i_mtime.tv_sec < min){
                         min = inode->i_mtime.tv_sec;
                         ino_ancien = ino;
                 }
+                pr_info("inode->i_count.counter(avant) : %d\n", inode->i_count.counter);
+                iput(inode);
+                pr_info("inode->i_count.counter(apres) : %d\n", inode->i_count.counter);
                 ++i;       
 	}
-        mark_buffer_dirty(bh);
         brelse(bh);
 
         pr_info("Le plus ancien du dossier est l'ino #%lu\n", ino_ancien);
@@ -495,6 +510,7 @@ unsigned long findOldestInPartition(struct inode *dir)
                                 min = inode->i_mtime.tv_sec;
                                 ino_ancien = ino;
                         }
+                        iput(inode);
                 }
         }
 
@@ -595,6 +611,7 @@ ssize_t shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
                 if(!flag){
                         parent = findParentOfIno(dir, 0, ino);
                         inodeParent = ouichefs_iget(sb, parent);
+                        iput(inodeParent);
                 }
                 pr_info("Parent trouvé ino : %lu\n", parent);
                                 
@@ -649,11 +666,11 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	int ret = 0, i;
 
         // Pour tester la partition
-        if(isPartitionFull(dir))
-                if(cleanIt(dir, 0)){
-                        pr_warning("Error during the partition cleaning!");
-                        return 1;                
-                }
+//        if(isPartitionFull(dir))
+//                if(cleanIt(dir, 0)){
+//                        pr_warning("Error during the partition cleaning!");
+//                        return 1;                
+//                }
                         
                            
         if(isDirFull(dir))
@@ -722,7 +739,9 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	/* setup dentry */
 	d_instantiate(dentry, inode);
         //ouichefs_unlink(inode, dentry);
-
+        pr_info("i_count dans create avant iput %d\n", inode->i_count.counter);
+        iput(inode);
+        pr_info("i_count dans create apres iput %d\n", inode->i_count.counter);
 	return 0;
 
 iput:
