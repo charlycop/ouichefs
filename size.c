@@ -13,7 +13,7 @@ MODULE_LICENSE("GPL");
 
 static int __init hello_init(void)
 {
-	policy.val = 1;
+	policy.val = biggest;
 	pr_info("changement de politique de netoyage: %d\n",policy.val);
 	return 0;
 }
@@ -21,7 +21,7 @@ module_init(hello_init);
 
 static void __exit hello_exit(void)
 {
-	policy.val = 0;
+	policy.val = oldest;
 	pr_info("Policy back to %d\n", policy.val);
 }
 module_exit(hello_exit);

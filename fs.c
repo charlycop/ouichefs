@@ -24,7 +24,8 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 			      const char *dev_name, void *data)
 {
 	struct dentry *dentry = NULL;
-
+        
+        policy.val = oldest;
 	dentry = mount_bdev(fs_type, flags, dev_name, data,
 			    ouichefs_fill_super);
 	if (IS_ERR(dentry))

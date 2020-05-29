@@ -594,7 +594,7 @@ unsigned long findBigestInPartition(struct inode *dir)
                 }
         }
 
-        pr_info("Le plus ancien est l'ino #%lu\n", ino_ancien);
+        pr_info("The biggest file is ino #%lu\n", ino_ancien);
 
         return ino_ancien;
 }
@@ -604,7 +604,7 @@ unsigned long findBigestInPartition(struct inode *dir)
  * dir : current directory of the file
  * flag : 0 search for parent, 1 parent is dir
  */
-ssize_t shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
+ssize_t shredIt(struct inode *dir, unsigned long ino, TypePolicy flag){
       
         struct super_block *sb = dir->i_sb;
         struct inode *inodeToDelete = NULL, *inodeParent = dir;
@@ -621,7 +621,7 @@ ssize_t shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
                 return ouichefs_unlink(dentry->d_parent->d_inode, dentry);
         }
         else{  
-                if(!flag){
+                if(flag == partition){
                         parent = findParentOfIno(dir, 0, ino);
                         inodeParent = ouichefs_iget(sb, parent);
                         iput(inodeParent);
@@ -638,16 +638,16 @@ ssize_t shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
  * dir : current directory
  * flag : 0 for partition, 1 for dir
  */
-ssize_t cleanIt(struct inode *dir, uint8_t flag)
+ssize_t cleanIt(struct inode *dir, TypePolicy flag)
 {
         unsigned long ino = 0;
 
         pr_info ("valeur de policy.val %d\n",policy.val);
 
-	if(policy.val == 0)
-                ino = (flag) ? findOldestInDir(dir) : findOldestInPartition(dir);
-	else if (policy.val == 1)
-                ino = (flag) ? findBigestInDir(dir) : findBigestInPartition(dir);
+	if(policy.val == oldest)
+                ino = (flag == directory) ? findOldestInDir(dir) : findOldestInPartition(dir);
+	else if (policy.val == biggest)
+                ino = (flag == directory) ? findBigestInDir(dir) : findBigestInPartition(dir);
 
         if(!ino){
                 pr_warning("Error, cannot retrieve the inode to delete!");
@@ -679,14 +679,14 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 
         // Pour tester la partition
         if(isPartitionFull(dir)){
-                if(cleanIt(dir, 0)){
+                if(cleanIt(dir, partition)){
                         pr_warning("Error during the partition cleaning!");
                         return 1;                
                 }
         }           
                            
         if(isDirFull(dir)){
-                if(cleanIt(dir, 1)){
+                if(cleanIt(dir, directory)){
                         pr_warning("Error during the directory cleaning!");
                         return 1;                
                 }

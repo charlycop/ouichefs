@@ -17,7 +17,6 @@
 #define OUICHEFS_MAX_SUBFILES           128
 #define OUICHEFS_MIN_SPACE               70
 
-
 /*
  * CowFS partition layout
  *
