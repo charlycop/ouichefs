@@ -12,12 +12,12 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 
-#include "size.h"     // 
+#include "size.h"     
 #include "ouichefs.h"
 #include "bitmap.h"
 //#include "cleaning.h" // Partition cleaning tools and policies
 
-extern policies policy; // Allows to choose the cleaning policy with another module
+extern TypePolicy policy; // Allows to choose the cleaning policy with another module
 
 static const struct inode_operations ouichefs_inode_ops;
 
@@ -642,11 +642,11 @@ ssize_t cleanIt(struct inode *dir, TypePolicy flag)
 {
         unsigned long ino = 0;
 
-        pr_info ("valeur de policy.val %d\n",policy.val);
+        pr_info ("valeur de policy.val %d\n",policy);
 
-	if(policy.val == oldest)
+	if(policy == oldest)
                 ino = (flag == directory) ? findOldestInDir(dir) : findOldestInPartition(dir);
-	else if (policy.val == biggest)
+	else if (policy == biggest)
                 ino = (flag == directory) ? findBigestInDir(dir) : findBigestInPartition(dir);
 
         if(!ino){
