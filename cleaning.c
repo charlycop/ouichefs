@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * ouiche_fs - a simple educational filesystem for Linux
+ *
+ * Copyright (C) 2018 Redha Gouicem <redha.gouicem@lip6.fr>
+ */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
@@ -6,120 +12,13 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 
+#include "size.h"     
 #include "ouichefs.h"
 #include "bitmap.h"
-#include "cleaning.h" // Partition cleaning tools and policies
+
+extern TypePolicy policy; // Allows to choose the cleaning policy with another module
 
 static const struct inode_operations ouichefs_inode_ops;
-
-/*
- * Remove a link for a file. If link count is 0, destroy file in this way:
- *   - remove the file from its parent directory.
- *   - cleanup blocks containing data
- *   - cleanup file index block
- *   - cleanup inode
- */
-int scrubAndClean(struct inode *parentInode, struct inode *childInode)
-{
-        struct super_block *sb = parentInode->i_sb;
-	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
-	struct buffer_head *bh = NULL, *bh2 = NULL;
-	struct ouichefs_dir_block *dir_block = NULL;
-	struct ouichefs_file_index_block *file_block = NULL;
-	uint32_t ino, bno;
-	int i, f_id = -1, nr_subs = 0;
-
-        ino = childInode->i_ino;
-        bno = OUICHEFS_INODE(childInode)->index_block;
-
-        /* Read parent directory index */
-	bh = sb_bread(sb, OUICHEFS_INODE(parentInode)->index_block);
-	if (!bh)
-		return -EIO;
-	dir_block = (struct ouichefs_dir_block *)bh->b_data;
-
-	/* Search for inode in parent index and get number of subfiles */
-	for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
-		if (dir_block->files[i].inode == ino)
-			f_id = i;
-		else if (dir_block->files[i].inode == 0)
-			break;
-	}
-	nr_subs = i;
-        
-	/* Remove file from parent directory */
-	if (f_id != OUICHEFS_MAX_SUBFILES - 1)
-		memmove(dir_block->files + f_id,
-			dir_block->files + f_id + 1,
-			(nr_subs - f_id - 1) * sizeof(struct ouichefs_file));
-	memset(&dir_block->files[nr_subs - 1],
-	       0, sizeof(struct ouichefs_file));
-	mark_buffer_dirty(bh);
-	brelse(bh);
-
-	/* Update inode stats */
-	parentInode->i_mtime = parentInode->i_atime = parentInode->i_ctime = 
-                                                  current_time(parentInode);
-	if (S_ISDIR(childInode->i_mode))
-		inode_dec_link_count(parentInode);
-	mark_inode_dirty(parentInode);
-
-        /*
-	 * Cleanup pointed blocks if unlinking a file. If we fail to read the
-	 * index block, cleanup inode anyway and lose this file's blocks
-	 * forever. If we fail to scrub a data block, don't fail (too late
-	 * anyway), just put the block and continue.
-	 */
-	bh = sb_bread(sb, bno);
-	if (!bh)
-		goto clean_inode;
-	file_block = (struct ouichefs_file_index_block *)bh->b_data;
-	if (S_ISDIR(childInode->i_mode))
-		goto scrub;
-	for (i = 0; i < childInode->i_blocks - 1; i++) {
-		char *block;
-
-		if(!file_block->blocks[i])
-			continue;
-
-		put_block(sbi, file_block->blocks[i]);
-		bh2 = sb_bread(sb, file_block->blocks[i]);
-		if (!bh2)
-			continue;
-		block = (char *)bh2->b_data;
-		memset(block, 0, OUICHEFS_BLOCK_SIZE);
-		mark_buffer_dirty(bh2);
-		brelse(bh2);
-	}
-
-scrub:
-	/* Scrub index block */
-	memset(file_block, 0, OUICHEFS_BLOCK_SIZE);
-	mark_buffer_dirty(bh);
-	brelse(bh);
-
-clean_inode:
-	/* Cleanup inode and mark dirty */
-	childInode->i_blocks = 0;
-	OUICHEFS_INODE(childInode)->index_block = 0;
-	childInode->i_size = 0;
-	i_uid_write(childInode, 0);
-	i_gid_write(childInode, 0);
-	childInode->i_mode = 0;
-	childInode->i_ctime.tv_sec =
-		childInode->i_mtime.tv_sec =
-		childInode->i_atime.tv_sec = 0;
-	mark_inode_dirty(childInode);
-
-	/* Free inode and index block from bitmap */
-	put_block(sbi, bno);
-	put_inode(sbi, ino);
-
-        pr_info("Fichier supprimé avec succès!\n");
-
-        return 0;
-
-}
 
 
 
@@ -211,16 +110,22 @@ unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
                                                  dir_block->files[i].filename);
                         res = findParentOfIno(dir, ino, inoToFind);
                         
-                        if(res > 0)
+                        if(res > 0){
+                                iput(inode);
                                 return res;
+                        }
                 }
                 else if (ino == inoToFind){
                         pr_info("fichier : %s avec ino:%lu localisé!\n",
                                             dir_block->files[i].filename, ino);
+                        iput(inode);
                         return inoParent; // on renvoie le parent
                 }
-                ++i;       
+                ++i;
+                iput(inode);      
 	}
+
+        brelse(bh);
 
         return 0;
 }
@@ -241,19 +146,34 @@ unsigned long findOldestInDir(struct inode *dir)
 
 	/* Search for inode in parent index and get number of subfiles */
         while(i < OUICHEFS_MAX_SUBFILES && dir_block->files[i].inode != 0){               
+            
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
-                
+
+
+                pr_info("counter (apres get) : %d\n", inode->i_count.counter);
+                //pr_info("inode->i_dio_count.counter : %d\n", inode->i_dio_count.counter);
+                //pr_info("inode->i_nlink : %u\n", inode->i_nlink);
+
                 // si pas fichier ou utilisé
-                if (S_ISDIR(inode->i_mode) || inode->i_count.counter)
+                if (S_ISDIR(inode->i_mode) || inode->i_count.counter > 1){
+                        iput(inode);
+                        ++i;
                         continue;
-                
+                }
+
+                //pr_info("dir->i_count.counter : %d\n", dir->i_count.counter);
+
                 if(inode->i_mtime.tv_sec < min){
                         min = inode->i_mtime.tv_sec;
                         ino_ancien = ino;
                 }
+                //pr_info("inode->i_count.counter(avant) : %d\n", inode->i_count.counter);
+                iput(inode);
+                //pr_info("inode->i_count.counter(apres) : %d\n", inode->i_count.counter);
                 ++i;       
 	}
+        brelse(bh);
 
         pr_info("Le plus ancien du dossier est l'ino #%lu\n", ino_ancien);
 
@@ -273,17 +193,93 @@ unsigned long findOldestInPartition(struct inode *dir)
                 if(ino < sbi->nr_inodes){
                         inode = ouichefs_iget(dir->i_sb, ino);
                          // si pas fichier ou utilisé
-                        if (S_ISDIR(inode->i_mode) || inode->i_count.counter)
+                        if (S_ISDIR(inode->i_mode) || inode->i_count.counter > 1){
+                                iput(inode);
                                 continue;
+                        }
 
                         if(inode->i_mtime.tv_sec < min){
                                 min = inode->i_mtime.tv_sec;
                                 ino_ancien = ino;
                         }
+                        iput(inode);
                 }
         }
 
         pr_info("Le plus ancien de la partition est l'ino #%lu\n", ino_ancien);
+
+        return ino_ancien;
+}
+
+unsigned long findBigestInDir(struct inode *dir)
+{
+        unsigned long ino, i = 0, max = 0, ino_biggest = 1;
+        struct super_block *sb = dir->i_sb;
+        struct buffer_head *bh = NULL;
+	struct ouichefs_dir_block *dir_block = NULL;
+        struct inode *inode = NULL;
+
+        /* Read parent directory index and put in RAM from the disk*/
+	bh = sb_bread(sb, OUICHEFS_INODE(dir)->index_block);
+
+        /* Get the block ifself */
+	dir_block = (struct ouichefs_dir_block *)bh->b_data;
+
+	/* Search for inode in parent index and get number of subfiles */
+        while(i < OUICHEFS_MAX_SUBFILES && dir_block->files[i].inode != 0){ 
+
+                ino = dir_block->files[i].inode;
+                inode = ouichefs_iget(sb, ino);  
+
+                // si pas fichier ou utilisé
+                if (S_ISDIR(inode->i_mode) || inode->i_count.counter > 1){
+                      ++i;
+                      iput(inode);
+                      continue;    
+                }
+                
+                if(inode->i_size > max){
+                        max = inode->i_size;
+                        ino_biggest = ino;
+                }
+                iput(inode);
+                ++i;       
+	}
+        brelse(bh);
+        pr_info("The biggest file in this dir is ino#%lu\n", ino_biggest);
+
+        return ino_biggest;
+}
+
+unsigned long findBigestInPartition(struct inode *dir)
+{
+        struct inode *inode = NULL;
+        struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
+        unsigned long ino = 0, max = 0, ino_ancien = 0;
+        
+	pr_info("je suis dans le findBigest\n");
+
+        while(++ino < sbi->nr_inodes){
+                ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
+                
+                if(ino < sbi->nr_inodes){
+                        inode = ouichefs_iget(dir->i_sb, ino);
+                        
+                        // si pas fichier ou deja utilisé
+                        if (S_ISDIR(inode->i_mode) || inode->i_count.counter > 1){ 
+                                iput(inode);
+                                continue;
+                        }
+
+                        if(inode->i_size > max){
+                                max = inode->i_size;
+                                ino_ancien = ino;
+                        }
+                        iput(inode);
+                }
+        }
+
+        pr_info("The biggest file is ino #%lu\n", ino_ancien);
 
         return ino_ancien;
 }
@@ -293,7 +289,7 @@ unsigned long findOldestInPartition(struct inode *dir)
  * dir : current directory of the file
  * flag : 0 search for parent, 1 parent is dir
  */
-ssize_t shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
+ssize_t shredIt(struct inode *dir, unsigned long ino, TypePolicy flag){
       
         struct super_block *sb = dir->i_sb;
         struct inode *inodeToDelete = NULL, *inodeParent = dir;
@@ -301,6 +297,7 @@ ssize_t shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
         unsigned long parent = 0;
 
         inodeToDelete = ouichefs_iget(sb, ino);     
+        iput(inodeToDelete);                
 
         if(inodeToDelete->i_dentry.first != NULL){ // si dentry : on fait unlink direct
                 dentry = hlist_entry(inodeToDelete->i_dentry.first, 
@@ -309,31 +306,36 @@ ssize_t shredIt(struct inode *dir, unsigned long ino, uint8_t flag){
                 return ouichefs_unlink(dentry->d_parent->d_inode, dentry);
         }
         else{  
-                if(!flag){
+                if(flag == partition){
                         parent = findParentOfIno(dir, 0, ino);
                         inodeParent = ouichefs_iget(sb, parent);
+                        iput(inodeParent);
                 }
                 pr_info("Parent trouvé ino : %lu\n", parent);
-                                
                 return scrubAndClean(inodeParent, inodeToDelete);
         }    
         
         return 1;  
 }
 
-
 /*
  * Free the partition or the dir of the oldest file.
  * dir : current directory
  * flag : 0 for partition, 1 for dir
  */
-ssize_t cleanIt(struct inode *dir, uint8_t flag)
+ssize_t cleanIt(struct inode *dir, TypePolicy flag)
 {
-        unsigned long ino = (flag) ? 
-                             findOldestInDir(dir) : findOldestInPartition(dir);
-                      
+        unsigned long ino = 0;
+
+        pr_info ("valeur de policy.val %d\n",policy);
+
+	if(policy == oldest)
+                ino = (flag == directory) ? findOldestInDir(dir) : findOldestInPartition(dir);
+	else if (policy == biggest)
+                ino = (flag == directory) ? findBigestInDir(dir) : findBigestInPartition(dir);
+
         if(!ino){
-                pr_warning("Error, cannot retrieve the oldest Inode!");
+                pr_warning("Error, cannot retrieve the inode to delete!");
                 return 1;
         }
 

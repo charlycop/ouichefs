@@ -35,6 +35,8 @@
  *
  */
 
+typedef enum TypePolicy TypePolicy;
+
 struct ouichefs_inode {
 	uint32_t i_mode;	/* File mode */
 	uint32_t i_uid;         /* Owner id */
@@ -92,11 +94,18 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent);
 int ouichefs_init_inode_cache(void);
 void ouichefs_destroy_inode_cache(void);
 struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino);
+int ouichefs_unlink(struct inode *, struct dentry *);
+int scrubAndClean(struct inode *, struct inode *);
 
 /* file functions */
 extern const struct file_operations ouichefs_file_ops;
 extern const struct file_operations ouichefs_dir_ops;
 extern const struct address_space_operations ouichefs_aops;
+
+/* Cleaning policy fonctions */
+ssize_t isPartitionFull(struct inode *);
+ssize_t isDirFull(struct inode *);
+ssize_t cleanIt(struct inode *, TypePolicy);
 
 /* Getters for superbock and inode */
 #define OUICHEFS_SB(sb) (sb->s_fs_info)

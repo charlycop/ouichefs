@@ -1,0 +1,165 @@
+diff -ruN linux-original/linux-4.19.3/arch/x86/entry/syscalls/syscall_64.tbl linux-4.19.3/arch/x86/entry/syscalls/syscall_64.tbl
+--- linux-original/linux-4.19.3/arch/x86/entry/syscalls/syscall_64.tbl	2018-11-21 09:19:29.000000000 +0100
++++ linux-4.19.3/arch/x86/entry/syscalls/syscall_64.tbl	2020-05-27 16:51:26.954394620 +0200
+@@ -344,6 +344,7 @@
+ 333	common	io_pgetevents		__x64_sys_io_pgetevents
+ 334	common	rseq			__x64_sys_rseq
+ 
++
+ #
+ # x32-specific system call numbers start at 512 to avoid cache impact
+ # for native 64-bit operation. The __x32_compat_sys stubs are created
+@@ -386,3 +387,4 @@
+ 545	x32	execveat		__x32_compat_sys_execveat/ptregs
+ 546	x32	preadv2			__x32_compat_sys_preadv64v2
+ 547	x32	pwritev2		__x32_compat_sys_pwritev64v2
++548 common clear_ouichefs __x64_sys_clear_ouichefs
+\ No newline at end of file
+diff -ruN linux-original/linux-4.19.3/arch/x86/include/generated/asm/syscalls_64.h linux-4.19.3/arch/x86/include/generated/asm/syscalls_64.h
+--- linux-original/linux-4.19.3/arch/x86/include/generated/asm/syscalls_64.h	2020-05-28 15:14:04.996743394 +0200
++++ linux-4.19.3/arch/x86/include/generated/asm/syscalls_64.h	2020-05-27 16:52:10.190566940 +0200
+@@ -1706,3 +1706,8 @@
+ #ifdef CONFIG_X86_X32_ABI
+ __SYSCALL_64(547, __x32_compat_sys_pwritev64v2, )
+ #endif
++#ifdef CONFIG_X86
++__SYSCALL_64(548, __x64_sys_clear_ouichefs, )
++#else /* CONFIG_UML */
++__SYSCALL_64(548, sys_clear_ouichefs, )
++#endif
+diff -ruN linux-original/linux-4.19.3/arch/x86/include/generated/uapi/asm/unistd_64.h linux-4.19.3/arch/x86/include/generated/uapi/asm/unistd_64.h
+--- linux-original/linux-4.19.3/arch/x86/include/generated/uapi/asm/unistd_64.h	2020-05-28 15:14:03.852744969 +0200
++++ linux-4.19.3/arch/x86/include/generated/uapi/asm/unistd_64.h	2020-05-27 16:52:09.694564984 +0200
+@@ -336,5 +336,6 @@
+ #define __NR_statx 332
+ #define __NR_io_pgetevents 333
+ #define __NR_rseq 334
++#define __NR_clear_ouichefs 548
+ 
+ #endif /* _ASM_X86_UNISTD_64_H */
+diff -ruN linux-original/linux-4.19.3/arch/x86/include/generated/uapi/asm/unistd_x32.h linux-4.19.3/arch/x86/include/generated/uapi/asm/unistd_x32.h
+--- linux-original/linux-4.19.3/arch/x86/include/generated/uapi/asm/unistd_x32.h	2020-05-28 15:14:03.852744969 +0200
++++ linux-4.19.3/arch/x86/include/generated/uapi/asm/unistd_x32.h	2020-05-27 16:52:09.690564967 +0200
+@@ -325,5 +325,6 @@
+ #define __NR_execveat (__X32_SYSCALL_BIT + 545)
+ #define __NR_preadv2 (__X32_SYSCALL_BIT + 546)
+ #define __NR_pwritev2 (__X32_SYSCALL_BIT + 547)
++#define __NR_clear_ouichefs (__X32_SYSCALL_BIT + 548)
+ 
+ #endif /* _ASM_X86_UNISTD_X32_H */
+diff -ruN linux-original/linux-4.19.3/include/generated/asm-offsets.h linux-4.19.3/include/generated/asm-offsets.h
+--- linux-original/linux-4.19.3/include/generated/asm-offsets.h	2020-05-28 15:14:05.200743113 +0200
++++ linux-4.19.3/include/generated/asm-offsets.h	2020-05-27 16:39:00.838397062 +0200
+@@ -34,8 +34,8 @@
+ 
+ #define stack_canary_offset 40 /* offsetof(union irq_stack_union, stack_canary) */
+ 
+-#define __NR_syscall_max 334 /* sizeof(syscalls_64) - 1 */
+-#define NR_syscalls 335 /* sizeof(syscalls_64) */
++#define __NR_syscall_max 548 /* sizeof(syscalls_64) - 1 */
++#define NR_syscalls 549 /* sizeof(syscalls_64) */
+ #define __NR_syscall_compat_max 386 /* sizeof(syscalls_ia32) - 1 */
+ #define IA32_NR_syscalls 387 /* sizeof(syscalls_ia32) */
+ 
+diff -ruN linux-original/linux-4.19.3/include/generated/compile.h linux-4.19.3/include/generated/compile.h
+--- linux-original/linux-4.19.3/include/generated/compile.h	2020-05-28 15:14:05.272743014 +0200
++++ linux-4.19.3/include/generated/compile.h	2020-05-28 14:30:23.179229040 +0200
+@@ -1,7 +1,7 @@
+-/* This file is auto generated, version 1 */
++/* This file is auto generated, version 14 */
+ /* SMP */
+ #define UTS_MACHINE "x86_64"
+-#define UTS_VERSION "#1 SMP Thu May 28 15:14:05 CEST 2020"
++#define UTS_VERSION "#14 SMP Thu May 28 14:30:23 CEST 2020"
+ #define LINUX_COMPILE_BY "pierre"
+ #define LINUX_COMPILE_HOST "pierre"
+ #define LINUX_COMPILER "gcc version 7.5.0 (Ubuntu 7.5.0-3ubuntu1~18.04)"
+diff -ruN linux-original/linux-4.19.3/include/linux/syscalls.h linux-4.19.3/include/linux/syscalls.h
+--- linux-original/linux-4.19.3/include/linux/syscalls.h	2018-11-21 09:19:29.000000000 +0100
++++ linux-4.19.3/include/linux/syscalls.h	2020-05-27 16:51:20.598368973 +0200
+@@ -1293,4 +1293,6 @@
+ 	return old;
+ }
+ 
++// Ouichefs syscall
++//asmlinkage long clear_ouichefs(void);
+ #endif
+diff -ruN linux-original/linux-4.19.3/include/uapi/asm-generic/unistd.h linux-4.19.3/include/uapi/asm-generic/unistd.h
+--- linux-original/linux-4.19.3/include/uapi/asm-generic/unistd.h	2018-11-21 09:19:29.000000000 +0100
++++ linux-4.19.3/include/uapi/asm-generic/unistd.h	2020-05-27 16:50:27.250150301 +0200
+@@ -737,8 +737,12 @@
+ #define __NR_rseq 293
+ __SYSCALL(__NR_rseq, sys_rseq)
+ 
++// ouichefs syscall
++#define __NR_clear_ouichefs 294
++__SYSCALL(__NR_clear_ouichefs, clear_ouichefs)
++
+ #undef __NR_syscalls
+-#define __NR_syscalls 294
++#define __NR_syscalls 295
+ 
+ /*
+  * 32 bit systems traditionally used different
+diff -ruN linux-original/linux-4.19.3/Makefile linux-4.19.3/Makefile
+--- linux-original/linux-4.19.3/Makefile	2018-11-21 09:19:29.000000000 +0100
++++ linux-4.19.3/Makefile	2020-05-27 15:12:56.034054084 +0200
+@@ -966,7 +966,7 @@
+ 
+ 
+ ifeq ($(KBUILD_EXTMOD),)
+-core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/
++core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/ sysouichefs/
+ 
+ vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
+ 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
+diff -ruN linux-original/linux-4.19.3/Module.symvers linux-4.19.3/Module.symvers
+--- linux-original/linux-4.19.3/Module.symvers	2020-05-28 15:16:29.308539705 +0200
++++ linux-4.19.3/Module.symvers	2020-05-28 14:30:38.111233110 +0200
+@@ -8987,6 +8987,7 @@
+ 0x00000000	phy_attach	vmlinux	EXPORT_SYMBOL
+ 0x00000000	acpi_finish_gpe	vmlinux	EXPORT_SYMBOL
+ 0x00000000	acpi_enable_event	vmlinux	EXPORT_SYMBOL
++0x00000000	module_clear_ouichefs	vmlinux	EXPORT_SYMBOL
+ 0x00000000	list_lru_walk_node	vmlinux	EXPORT_SYMBOL_GPL
+ 0x00000000	nr_cpu_ids	vmlinux	EXPORT_SYMBOL
+ 0x00000000	platform_thermal_package_rate_control	vmlinux	EXPORT_SYMBOL_GPL
+Binary files linux-original/linux-4.19.3/scripts/kconfig/nconf and linux-4.19.3/scripts/kconfig/nconf differ
+diff -ruN linux-original/linux-4.19.3/scripts/kconfig/.nconf-cfg linux-4.19.3/scripts/kconfig/.nconf-cfg
+--- linux-original/linux-4.19.3/scripts/kconfig/.nconf-cfg	1970-01-01 01:00:00.000000000 +0100
++++ linux-4.19.3/scripts/kconfig/.nconf-cfg	2020-05-27 14:40:40.669621456 +0200
+@@ -0,0 +1,2 @@
++cflags="-D_GNU_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE -D_DEFAULT_SOURCE"
++libs="-lncurses -ltinfo -lmenu -lpanel"
+diff -ruN linux-original/linux-4.19.3/sysouichefs/clear_ouichefs.c linux-4.19.3/sysouichefs/clear_ouichefs.c
+--- linux-original/linux-4.19.3/sysouichefs/clear_ouichefs.c	1970-01-01 01:00:00.000000000 +0100
++++ linux-4.19.3/sysouichefs/clear_ouichefs.c	2020-05-28 14:49:42.901879797 +0200
+@@ -0,0 +1,16 @@
++#include <linux/syscalls.h>
++#include <linux/kernel.h>
++#include <linux/module.h>
++
++long (*module_clear_ouichefs)(void) = NULL;
++EXPORT_SYMBOL(module_clear_ouichefs);
++
++SYSCALL_DEFINE0(clear_ouichefs)
++{
++	if(module_clear_ouichefs != NULL)
++		return module_clear_ouichefs();
++	else {
++		pr_info("Ouichefs module not loaded, syscall cannot be performed\n");
++		return -ENOSYS;
++	}
++}
+diff -ruN linux-original/linux-4.19.3/sysouichefs/Makefile linux-4.19.3/sysouichefs/Makefile
+--- linux-original/linux-4.19.3/sysouichefs/Makefile	1970-01-01 01:00:00.000000000 +0100
++++ linux-4.19.3/sysouichefs/Makefile	2020-05-27 15:28:37.186723891 +0200
+@@ -0,0 +1 @@
++obj-y := clear_ouichefs.o
+Binary files linux-original/linux-4.19.3/tools/objtool/objtool and linux-4.19.3/tools/objtool/objtool differ
+diff -ruN linux-original/linux-4.19.3/.version linux-4.19.3/.version
+--- linux-original/linux-4.19.3/.version	2020-05-28 15:16:14.800560596 +0200
++++ linux-4.19.3/.version	2020-05-28 14:30:23.151229031 +0200
+@@ -1 +1 @@
+-1
++14
