@@ -150,8 +150,11 @@ unsigned long findOldestInDir(struct inode *dir)
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
 
-                pr_info("counter (apres get) : %d\n", inode->i_count.counter);
-
+                if(inode->i_dentry.first != NULL)
+                        pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
+                else
+                        pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
+                
                 // is it a directory OR (counter > 2 because these is a dentry)
                 //                   OR (counter > 1 because there is no dentry)
                 // is it a director, or used by at least one user process
@@ -193,11 +196,22 @@ unsigned long findOldestInPartition(struct inode *dir)
                 
                 if(ino < sbi->nr_inodes){
                         inode = ouichefs_iget(dir->i_sb, ino);
-                         // si pas fichier ou utilisé
-                        if (S_ISDIR(inode->i_mode) || inode->i_count.counter > 1){
+                        
+                        if(inode->i_dentry.first != NULL)
+                                pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
+                        else
+                                pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
+                        
+                        // is it a directory OR (counter > 2 because these is a dentry)
+                        //                   OR (counter > 1 because there is no dentry)
+                        // is it a director, or used by at least one user process
+                        if (S_ISDIR(inode->i_mode) ||
+                        (inode->i_dentry.first != NULL && inode->i_count.counter > 2) || 
+                        (inode->i_dentry.first == NULL && inode->i_count.counter > 1)){
                                 iput(inode);
                                 continue;
                         }
+
 
                         if(inode->i_mtime.tv_sec < min){
                                 min = inode->i_mtime.tv_sec;
@@ -232,12 +246,22 @@ unsigned long findBigestInDir(struct inode *dir)
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
 
-                // si pas fichier ou utilisé
-                if (S_ISDIR(inode->i_mode) || inode->i_count.counter > 1){
-                      ++i;
-                      iput(inode);
-                      continue;    
+                if(inode->i_dentry.first != NULL)
+                        pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
+                else
+                        pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
+                
+                // is it a directory OR (counter > 2 because these is a dentry)
+                //                   OR (counter > 1 because there is no dentry)
+                // is it a director, or used by at least one user process
+                if (S_ISDIR(inode->i_mode) ||
+                (inode->i_dentry.first != NULL && inode->i_count.counter > 2) || 
+                (inode->i_dentry.first == NULL && inode->i_count.counter > 1)){
+                        iput(inode);
+                        ++i;
+                        continue;
                 }
+
                 
                 if(inode->i_size > max){
                         max = inode->i_size;
@@ -266,11 +290,21 @@ unsigned long findBigestInPartition(struct inode *dir)
                 if(ino < sbi->nr_inodes){
                         inode = ouichefs_iget(dir->i_sb, ino);
                         
-                        // si pas fichier ou deja utilisé
-                        if (S_ISDIR(inode->i_mode) || inode->i_count.counter > 1){ 
+                        if(inode->i_dentry.first != NULL)
+                                pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
+                        else
+                                pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
+                        
+                        // is it a directory OR (counter > 2 because these is a dentry)
+                        //                   OR (counter > 1 because there is no dentry)
+                        // is it a director, or used by at least one user process
+                        if (S_ISDIR(inode->i_mode) ||
+                        (inode->i_dentry.first != NULL && inode->i_count.counter > 2) || 
+                        (inode->i_dentry.first == NULL && inode->i_count.counter > 1)){
                                 iput(inode);
                                 continue;
                         }
+
 
                         if(inode->i_size > max){
                                 max = inode->i_size;
