@@ -432,9 +432,9 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 
 	/* setup dentry */
 	d_instantiate(dentry, inode);
+        //iput(inode);
 
         pr_info("i_count dans create avant iput %d\n", inode->i_count.counter);
-        iput(inode);
         pr_info("i_count dans create apres iput %d\n", inode->i_count.counter);
 	return 0;
 

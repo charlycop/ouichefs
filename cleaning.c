@@ -150,13 +150,14 @@ unsigned long findOldestInDir(struct inode *dir)
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
 
-
                 pr_info("counter (apres get) : %d\n", inode->i_count.counter);
-                //pr_info("inode->i_dio_count.counter : %d\n", inode->i_dio_count.counter);
-                //pr_info("inode->i_nlink : %u\n", inode->i_nlink);
 
-                // si pas fichier ou utilisé
-                if (S_ISDIR(inode->i_mode) || inode->i_count.counter > 1){
+                // is it a directory OR (counter > 2 because these is a dentry)
+                //                   OR (counter > 1 because there is no dentry)
+                // is it a director, or used by at least one user process
+                if (S_ISDIR(inode->i_mode) ||
+                (inode->i_dentry.first != NULL && inode->i_count.counter > 2) || 
+                (inode->i_dentry.first == NULL && inode->i_count.counter > 1)){
                         iput(inode);
                         ++i;
                         continue;
