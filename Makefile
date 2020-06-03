@@ -1,6 +1,9 @@
 obj-m += ouichefs.o
+obj-m += ouichefs_sys.o
 obj-m += size.o
+
 ouichefs-objs := fs.o super.o inode.o file.o dir.o cleaning.o
+ouichefs_sys-objs := fs_sys.o super.o inode.o file.o dir.o cleaning.o
 
 KERNELDIR ?= ../../../../KERNEL_SRC/linux-4.19.3
 

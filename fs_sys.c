@@ -104,10 +104,10 @@ static int __init ouichefs_init(void)
 	}
 
 	////// AJOUTEZ CA
-	//module_clear_ouichefs = &(custom_syscall);
-	//if(module_clear_ouichefs == NULL) {
-	//	pr_info("Syscall not wrapped\n");
-	//}
+	module_clear_ouichefs = &(custom_syscall);
+	if(module_clear_ouichefs == NULL) {
+		pr_info("Syscall not wrapped\n");
+	}
 
 	////////
 	pr_info("module loaded\n");
@@ -138,7 +138,7 @@ static void __exit ouichefs_exit(void)
 	////// AJOUTEZ CA
 	// restore syscall first
 	//restore_syscall();
-	//module_clear_ouichefs = NULL;
+	module_clear_ouichefs = NULL;
 	///////
 
 	ret = unregister_filesystem(&ouichefs_file_system_type);
