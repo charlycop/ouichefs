@@ -29,4 +29,4 @@ Résultat de la localisation du fichier avec modification la plus ancienne, puis
 
 Résultat de la localisation du fichier le plus gros et puis sa suppression (réglage du free space minimum à 70%)
 
-![](/home/charlycop/Bureau/PNL/dev_env/share/ouichefs/findbiggest.png)
+![](findbiggest.png)
