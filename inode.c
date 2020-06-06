@@ -251,12 +251,12 @@ clean_inode:
 	put_inode(sbi, ino);
         //pr_info("childInode avant iput %d\n", childInode->i_count.counter);
         //iput(childInode);
-        pr_info("childInode dans unlink %d\n", childInode->i_count.counter);
+        //pr_info("childInode dans unlink %d\n", childInode->i_count.counter);
         //pr_info("parentinode avant iput %d\n", parentInode->i_count.counter);
 
-        pr_info("parentinode apdans unlink %d\n", parentInode->i_count.counter);
+        //pr_info("parentinode apdans unlink %d\n", parentInode->i_count.counter);
         
-        pr_info("Fichier supprimé avec succès!\n");
+        pr_info("Target file deleted successfully!\n");
 
         return 0;
 
@@ -434,8 +434,8 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	d_instantiate(dentry, inode);
         //iput(inode);
 
-        pr_info("i_count dans create avant iput %d\n", inode->i_count.counter);
-        pr_info("i_count dans create apres iput %d\n", inode->i_count.counter);
+//        pr_info("i_count dans create avant iput %d\n", inode->i_count.counter);
+//        pr_info("i_count dans create apres iput %d\n", inode->i_count.counter);
 	return 0;
 
 iput:

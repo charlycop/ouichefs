@@ -38,7 +38,7 @@ ssize_t isPartitionFull(struct inode *dir)
                 --space;
                 
         if (space < OUICHEFS_MIN_SPACE){
-                pr_warning("Limite de stockage critique (%u%c) !\n", space,'%');
+                pr_warning("Critical usage space reached (%u%c) !\n", space,'%');
                 return 1;
         }
         
@@ -106,7 +106,7 @@ unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
                 inode = ouichefs_iget(sb, ino);  
               
                 if (S_ISDIR(inode->i_mode)){
-                        pr_info("On entre dans dossier : /%s\n", 
+                        pr_info("Scanning directory : /%s\n", 
                                                  dir_block->files[i].filename);
                         res = findParentOfIno(dir, ino, inoToFind);
                         
@@ -116,7 +116,7 @@ unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
                         }
                 }
                 else if (ino == inoToFind){
-                        pr_info("fichier : %s avec ino:%lu localisé!\n",
+                        pr_info("Targeted file : %s with ino:%lu located!\n",
                                             dir_block->files[i].filename, ino);
                         iput(inode);
                         return inoParent; // on renvoie le parent
@@ -150,10 +150,10 @@ unsigned long findOldestInDir(struct inode *dir)
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
 
-                if(inode->i_dentry.first != NULL)
-                        pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
-                else
-                        pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
+//                if(inode->i_dentry.first != NULL)
+//                        pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
+//                else
+//                        pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
                 
                 // is it a directory OR (counter > 2 because these is a dentry)
                 //                   OR (counter > 1 because there is no dentry)
@@ -197,10 +197,10 @@ unsigned long findOldestInPartition(struct inode *dir)
                 if(ino < sbi->nr_inodes){
                         inode = ouichefs_iget(dir->i_sb, ino);
                         
-                        if(inode->i_dentry.first != NULL)
-                                pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
-                        else
-                                pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
+//                        if(inode->i_dentry.first != NULL)
+//                                pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
+//                        else
+//                                pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
                         
                         // is it a directory OR (counter > 2 because these is a dentry)
                         //                   OR (counter > 1 because there is no dentry)
@@ -221,7 +221,7 @@ unsigned long findOldestInPartition(struct inode *dir)
                 }
         }
 
-        pr_info("Le plus ancien de la partition est l'ino #%lu\n", ino_ancien);
+        pr_info("The partition's oldest file is ino #%lu\n", ino_ancien);
 
         return ino_ancien;
 }
@@ -246,11 +246,11 @@ unsigned long findBigestInDir(struct inode *dir)
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
                                         
-
-                if(inode->i_dentry.first != NULL)
-                        pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
-                else
-                        pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
+//
+//                if(inode->i_dentry.first != NULL)
+//                        pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
+//                else
+//                        pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
 
                 
                 // is it a directory OR (counter > 2 because these is a dentry)
@@ -285,7 +285,6 @@ unsigned long findBigestInPartition(struct inode *dir)
         struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
         unsigned long ino = 0, max = 0, ino_ancien = 0;
         
-	pr_info("je suis dans le findBigest\n");
 
         while(++ino < sbi->nr_inodes){
                 ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
@@ -293,10 +292,10 @@ unsigned long findBigestInPartition(struct inode *dir)
                 if(ino < sbi->nr_inodes){
                         inode = ouichefs_iget(dir->i_sb, ino);
                         
-                        if(inode->i_dentry.first != NULL)
-                                pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
-                        else
-                                pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
+//                        if(inode->i_dentry.first != NULL)
+//                                pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
+//                        else
+//                                pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
                         
                         // is it a directory OR (counter > 2 because these is a dentry)
                         //                   OR (counter > 1 because there is no dentry)
@@ -349,7 +348,7 @@ ssize_t shredIt(struct inode *dir, unsigned long ino, TypePolicy flag){
                         inodeParent = ouichefs_iget(sb, parent);
                         iput(inodeParent);
                 }
-                pr_info("Parent trouvé ino : %lu\n", parent);
+                pr_info("Parent's directory located, ino : %lu\n", parent);
                 return scrubAndClean(inodeParent, inodeToDelete);
         }    
         
@@ -365,7 +364,7 @@ ssize_t cleanIt(struct inode *dir, TypePolicy flag)
 {
         unsigned long ino = 0;
 
-        pr_info ("valeur de policy.val %d\n",policy);
+        //pr_info ("valeur de policy.val %d\n",policy);
 
 	if(policy == oldest)
                 ino = (flag == directory) ? findOldestInDir(dir) : findOldestInPartition(dir);
