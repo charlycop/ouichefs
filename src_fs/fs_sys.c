@@ -79,7 +79,9 @@ long custom_syscall(int syscall_policy) {
 
 	ino = ouichefs_iget(dentry_root->d_sb, 0);
 
-	clean_it(ino , partition);
+	if(clean_it(ino , partition) != 0) {
+		pr_info("Error in clean_it() called from syscall\n");
+	}
 
 	policy = old_policy;
 	return 0;
