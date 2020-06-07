@@ -12,7 +12,7 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 
-#include "size.h"     
+#include "policy.h"     
 #include "ouichefs.h"
 #include "bitmap.h"
 
@@ -27,22 +27,15 @@ static const struct inode_operations ouichefs_inode_ops;
  * dir : current directory inode
  * Returns 1 if partition size left is < OUICHEFS_MIN_SPACE, 0 otherwise
  */
-
-// mauvais nom ? on cherche pas si elle est full, mais si elle a dépassée notre limite 
-// plutot check_limit() ?
-// j'ai mis int car c'est le plus proche du bool en c
-int is_partition_full(struct inode *dir)
+int check_limit(struct inode *dir)
 {       
         uint32_t space;
         struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
              
-        space = (sbi->nr_free_blocks*100)/sbi->nr_blocks;
-        
-        if(sbi->nr_blocks % sbi->nr_free_blocks)
-                --space;
-
-        // j'ai ça en une ligne, plutot que le if (free ->space), mais ca dépasse les 80 char par ligne
-        // free = (sbi->nr_free_blocks % sbi->nr_blocks) ? (sbi->nr_free_blocks*100)/sbi->nr_blocks + 1 : (sbi->nr_free_blocks*100)/sbi->nr_blocks;
+        /* calculate the available space in % */
+        space = (sbi->nr_free_blocks % sbi->nr_blocks) ? 
+                (sbi->nr_free_blocks*100)/sbi->nr_blocks + 1 : 
+                (sbi->nr_free_blocks*100)/sbi->nr_blocks;
                 
         if (space < OUICHEFS_MIN_SPACE){
                 pr_warning("Critical usage space reached (%u%c) !\n", space,'%');
@@ -90,9 +83,13 @@ int is_dir_full(struct inode *dir)
         return 1;
 } 
 
-//static puisque utilisée nulle part ailleurs ?
-
-unsigned long find_parent_of_ino(struct inode *dir, unsigned long inoParent,
+/*
+ * Get the inode->i_ino of the parent directory
+ * dir : current directory inode
+ * Returns parent's ino if success, 0 otherwise.
+ */
+static unsigned long find_parent_of_ino(struct inode *dir, 
+                                unsigned long inoParent,
                                 unsigned long inoToFind)
 {
         unsigned long ino = inoParent, i = 0, res = 0;
@@ -113,7 +110,7 @@ unsigned long find_parent_of_ino(struct inode *dir, unsigned long inoParent,
         while(i < OUICHEFS_MAX_SUBFILES && dir_block->files[i].inode != 0){               
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
-              
+                
                 if (S_ISDIR(inode->i_mode)){
                         pr_info("Scanning directory : /%s\n", 
                                                  dir_block->files[i].filename);
@@ -139,9 +136,12 @@ unsigned long find_parent_of_ino(struct inode *dir, unsigned long inoParent,
         return 0;
 }
 
-//static puisque utilisée nulle part ailleurs ?
-
-unsigned long find_oldest_in_dir(struct inode *dir)
+/*
+ * Get the inode->i_ino of the oldest file in dir
+ * dir : current directory inode
+ * Returns ino if success, 0 otherwise.
+ */
+static unsigned long oldest_in_dir(struct inode *dir)
 {
         unsigned long ino, i = 0, min = ULONG_MAX, ino_ancien = 0;
         struct super_block *sb = dir->i_sb;
@@ -160,15 +160,10 @@ unsigned long find_oldest_in_dir(struct inode *dir)
             
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
-
-//                if(inode->i_dentry.first != NULL)
-//                        pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
-//                else
-//                        pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
                 
-                // is it a directory OR (counter > 2 because these is a dentry)
+                // is it a directory OR (counter > 2 because there is a dentry)
                 //                   OR (counter > 1 because there is no dentry)
-                // is it a director, or used by at least one user process
+                // is it a directory, or used by at least one user process
                 if (S_ISDIR(inode->i_mode) ||
                 (inode->i_dentry.first != NULL && inode->i_count.counter > 2) || 
                 (inode->i_dentry.first == NULL && inode->i_count.counter > 1)){
@@ -176,16 +171,13 @@ unsigned long find_oldest_in_dir(struct inode *dir)
                         ++i;
                         continue;
                 }
-
-                //pr_info("dir->i_count.counter : %d\n", dir->i_count.counter);
-
+                
+                /* check if it's the oldest */
                 if(inode->i_mtime.tv_sec < min){
                         min = inode->i_mtime.tv_sec;
                         ino_ancien = ino;
                 }
-                //pr_info("inode->i_count.counter(avant) : %d\n", inode->i_count.counter);
                 iput(inode);
-                //pr_info("inode->i_count.counter(apres) : %d\n", inode->i_count.counter);
                 ++i;       
 	}
         brelse(bh);
@@ -195,10 +187,12 @@ unsigned long find_oldest_in_dir(struct inode *dir)
         return ino_ancien;
 }
 
-//static puisque utilisée nulle part ailleurs ?
-// j'ai changé le nom qui me paraissait un peu trop long (le find n'est pas utile non ?)
-
-unsigned long oldest_in_partition(struct inode *dir)
+/*
+ * Get the inode->i_ino of the oldest inode in partition (date of last modif)
+ * dir : current directory inode
+ * Returns ino if success, 0 otherwise.
+ */
+static unsigned long oldest_in_partition(struct inode *dir)
 {
         struct inode *inode = NULL;
         struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
@@ -210,12 +204,7 @@ unsigned long oldest_in_partition(struct inode *dir)
                 
                 if(ino < sbi->nr_inodes){
                         inode = ouichefs_iget(dir->i_sb, ino);
-                        
-//                        if(inode->i_dentry.first != NULL)
-//                                pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
-//                        else
-//                                pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
-                        
+                                              
                         // is it a directory OR (counter > 2 because these is a dentry)
                         //                   OR (counter > 1 because there is no dentry)
                         // is it a director, or used by at least one user process
@@ -226,7 +215,7 @@ unsigned long oldest_in_partition(struct inode *dir)
                                 continue;
                         }
 
-
+                        /* check if it is the oldest */
                         if(inode->i_mtime.tv_sec < min){
                                 min = inode->i_mtime.tv_sec;
                                 ino_ancien = ino;
@@ -240,11 +229,12 @@ unsigned long oldest_in_partition(struct inode *dir)
         return ino_ancien;
 }
 
-//static puisque utilisée nulle part ailleurs ?
-// j'ai changé le nom qui me paraissait un peu trop long (le find n'est pas utile non ?)
-
-
-unsigned long biggest_in_dir(struct inode *dir)
+/*
+ * Get the inode->i_ino of the biggest inode in dir
+ * dir : current directory inode
+ * Returns ino of the biggest, the bloc's first inode if they are all equal.
+ */
+static unsigned long biggest_in_dir(struct inode *dir)
 {
         unsigned long ino, i = 0, max = 0, ino_biggest = 1;
         struct super_block *sb = dir->i_sb;
@@ -263,14 +253,7 @@ unsigned long biggest_in_dir(struct inode *dir)
 
                 ino = dir_block->files[i].inode;
                 inode = ouichefs_iget(sb, ino);  
-                                        
-//
-//                if(inode->i_dentry.first != NULL)
-//                        pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
-//                else
-//                        pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
 
-                
                 // is it a directory OR (counter > 2 because these is a dentry)
                 //                   OR (counter > 1 because there is no dentry)
                 // is it a director, or used by at least one user process
@@ -283,7 +266,7 @@ unsigned long biggest_in_dir(struct inode *dir)
                 }
                 
                 /* by default, we choose the first inode is the block
-                   in case all the files are empty.    */         
+                   in case all the files are empty.*/         
                 if(inode->i_size > max || i == 0){
                         max = inode->i_size;
                         ino_biggest = ino;
@@ -297,11 +280,12 @@ unsigned long biggest_in_dir(struct inode *dir)
         return ino_biggest;
 }
 
-//static puisque utilisée nulle part ailleurs ?
-// j'ai changé le nom qui me paraissait un peu trop long (le find n'est pas utile non ?)
-
-
-unsigned long biggest_in_partition(struct inode *dir)
+/*
+ * Get the inode->i_ino of the biggest inode in partition
+ * dir : current directory inode
+ * Returns ino of the biggest, 0 otherwise.
+ */
+static unsigned long biggest_in_partition(struct inode *dir)
 {
         struct inode *inode = NULL;
         struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
@@ -313,12 +297,7 @@ unsigned long biggest_in_partition(struct inode *dir)
                 
                 if(ino < sbi->nr_inodes){
                         inode = ouichefs_iget(dir->i_sb, ino);
-                        
-//                        if(inode->i_dentry.first != NULL)
-//                                pr_info("avec dentry : i_count=%d\n", inode->i_count.counter);
-//                        else
-//                                pr_info("pas dentry : i_count=%d\n", inode->i_count.counter);
-                        
+
                         // is it a directory OR (counter > 2 because these is a dentry)
                         //                   OR (counter > 1 because there is no dentry)
                         // is it a director, or used by at least one user process
@@ -329,7 +308,7 @@ unsigned long biggest_in_partition(struct inode *dir)
                                 continue;
                         }
 
-
+                        /* check if it is the biggest */
                         if(inode->i_size > max){
                                 max = inode->i_size;
                                 ino_ancien = ino;
@@ -348,9 +327,7 @@ unsigned long biggest_in_partition(struct inode *dir)
  * dir : current directory of the file
  * flag : 0 search for parent, 1 parent is dir
  */
-
-// static aussi ? nulle part ailleurs
-int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag){
+static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag){
       
         struct super_block *sb = dir->i_sb;
         struct inode *inodeToDelete = NULL, *inodeParent = dir;
@@ -360,13 +337,14 @@ int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag){
         inodeToDelete = ouichefs_iget(sb, ino);     
         iput(inodeToDelete);                
 
-        if(inodeToDelete->i_dentry.first != NULL){ // si dentry : on fait unlink direct
+        if(inodeToDelete->i_dentry.first != NULL){ // dentry in cache
                 dentry = hlist_entry(inodeToDelete->i_dentry.first, 
                                            struct dentry, d_u.d_alias);
-                // DILEMME UTILISE-T-ON UNLINK pour montrer qu'on a bien capter la diff' ?
+                
+                /* We use unlink because there is a dentry in cache */
                 return ouichefs_unlink(dentry->d_parent->d_inode, dentry);
         }
-        else{  
+        else{   // no dentry in cache
                 if(flag == partition){
                         parent = find_parent_of_ino(dir, 0, ino);
                         inodeParent = ouichefs_iget(sb, parent);
@@ -382,18 +360,20 @@ int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag){
 /*
  * Free the partition or the dir of the oldest file.
  * dir : current directory
- * flag : 0 for partition, 1 for dir
+ * flag : partition or directory
  */
 int clean_it(struct inode *dir, TypePolicy flag)
 {
         unsigned long ino = 0;
-
-        //pr_info ("valeur de policy.val %d\n",policy);
-
+        
+        /* policy refers to global module variable */
+        /* can be changed by inserting another module */
 	if(policy == oldest)
-                ino = (flag == directory) ? find_oldest_in_dir(dir) : oldest_in_partition(dir);
+                ino = (flag == directory) ? oldest_in_dir(dir) : 
+                                            oldest_in_partition(dir);
 	else if (policy == biggest)
-                ino = (flag == directory) ? biggest_in_dir(dir) : biggest_in_partition(dir);
+                ino = (flag == directory) ? biggest_in_dir(dir) :
+                                            biggest_in_partition(dir);
 
         if(!ino){
                 pr_warning("Error, cannot retrieve the inode to delete!");

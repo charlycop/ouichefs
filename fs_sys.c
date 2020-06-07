@@ -12,7 +12,7 @@
 #include <linux/fs.h>
 
 #include "ouichefs.h"
-#include "size.h"
+#include "policy.h"
 
 // Allows to choose the cleaning policy with another module
 TypePolicy policy;

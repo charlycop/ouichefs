@@ -103,7 +103,7 @@ extern const struct file_operations ouichefs_dir_ops;
 extern const struct address_space_operations ouichefs_aops;
 
 /* Cleaning policy fonctions */
-int is_partition_full(struct inode *);
+int check_limit(struct inode *);
 int is_dir_full(struct inode *);
 int clean_it(struct inode *, TypePolicy);
 

@@ -12,10 +12,9 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 
-#include "size.h"     
+#include "policy.h"     
 #include "ouichefs.h"
 #include "bitmap.h"
-//#include "cleaning.h" // Partition cleaning tools and policies
 
 extern TypePolicy policy; // Allows to choose the cleaning policy with another module
 
@@ -249,12 +248,6 @@ clean_inode:
 	/* Free inode and index block from bitmap */
 	put_block(sbi, bno);
 	put_inode(sbi, ino);
-        //pr_info("childInode avant iput %d\n", childInode->i_count.counter);
-        //iput(childInode);
-        //pr_info("childInode dans unlink %d\n", childInode->i_count.counter);
-        //pr_info("parentinode avant iput %d\n", parentInode->i_count.counter);
-
-        //pr_info("parentinode apdans unlink %d\n", parentInode->i_count.counter);
         
         pr_info("Target file deleted successfully!\n");
 
@@ -358,14 +351,15 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	struct buffer_head *bh, *bh2;
 	int ret = 0, i;
 
-        // Pour tester la partition
-        if(is_partition_full(dir)){
+        /* testing the usage space */
+        if(check_limit(dir)){
                 if(clean_it(dir, partition)){
                         pr_warning("Error during the partition cleaning!");
                         return 1;                
                 }
         }           
-                           
+        
+        /* testing the files number in the current dir */              
         if(is_dir_full(dir)){
                 if(clean_it(dir, directory)){
                         pr_warning("Error during the directory cleaning!");
@@ -432,10 +426,7 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 
 	/* setup dentry */
 	d_instantiate(dentry, inode);
-        //iput(inode);
 
-//        pr_info("i_count dans create avant iput %d\n", inode->i_count.counter);
-//        pr_info("i_count dans create apres iput %d\n", inode->i_count.counter);
 	return 0;
 
 iput:

@@ -2,7 +2,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
-#include "size.h"
+#include "policy.h"
 
 extern TypePolicy policy;
 

@@ -1,7 +1,7 @@
-#ifndef _SIZE_H
-#define _SIZE_H
+#ifndef _POLICY_H
+#define _POLICY_H
 
 typedef enum TypePolicy TypePolicy;
 enum TypePolicy {biggest, oldest, directory, partition};
 
-#endif	/* _SIZE_H */
+#endif	/* _POLICY_H */
