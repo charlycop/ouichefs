@@ -12,7 +12,7 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 
-#include "policy.h"     
+#include "../src_mod/policy.h"     
 #include "ouichefs.h"
 #include "bitmap.h"
 
