@@ -12,7 +12,7 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 
-#include "../src_mod/policy.h"     
+#include "../src_mod/policy.h"
 #include "ouichefs.h"
 #include "bitmap.h"
 
@@ -37,10 +37,10 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino)
 	/* Fail if ino is out of range */
 	if (ino >= sbi->nr_inodes)
 		return ERR_PTR(-EINVAL);
-        
+
 	/* Get a locked inode from Linux */
 	inode = iget_locked(sb, ino);
-        
+
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	/* If inode is in cache, return it */
@@ -155,7 +155,7 @@ static struct dentry *ouichefs_lookup(struct inode *dir, struct dentry *dentry,
  */
 int scrub_and_clean(struct inode *parentInode, struct inode *childInode)
 {
-        struct super_block *sb = parentInode->i_sb;
+	struct super_block *sb = parentInode->i_sb;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
 	struct buffer_head *bh = NULL, *bh2 = NULL;
 	struct ouichefs_dir_block *dir_block = NULL;
@@ -163,10 +163,10 @@ int scrub_and_clean(struct inode *parentInode, struct inode *childInode)
 	uint32_t ino, bno;
 	int i, f_id = -1, nr_subs = 0;
 
-        ino = childInode->i_ino;
-        bno = OUICHEFS_INODE(childInode)->index_block;
+	ino = childInode->i_ino;
+	bno = OUICHEFS_INODE(childInode)->index_block;
 
-        /* Read parent directory index */
+	/* Read parent directory index */
 	bh = sb_bread(sb, OUICHEFS_INODE(parentInode)->index_block);
 	if (!bh)
 		return -EIO;
@@ -180,7 +180,7 @@ int scrub_and_clean(struct inode *parentInode, struct inode *childInode)
 			break;
 	}
 	nr_subs = i;
-        
+
 	/* Remove file from parent directory */
 	if (f_id != OUICHEFS_MAX_SUBFILES - 1)
 		memmove(dir_block->files + f_id,
@@ -192,13 +192,13 @@ int scrub_and_clean(struct inode *parentInode, struct inode *childInode)
 	brelse(bh);
 
 	/* Update inode stats */
-	parentInode->i_mtime = parentInode->i_atime = parentInode->i_ctime = 
-                                                  current_time(parentInode);
+	parentInode->i_mtime = parentInode->i_atime = parentInode->i_ctime =
+						  current_time(parentInode);
 	if (S_ISDIR(childInode->i_mode))
 		inode_dec_link_count(parentInode);
 	mark_inode_dirty(parentInode);
 
-        /*
+	/*
 	 * Cleanup pointed blocks if unlinking a file. If we fail to read the
 	 * index block, cleanup inode anyway and lose this file's blocks
 	 * forever. If we fail to scrub a data block, don't fail (too late
@@ -213,7 +213,7 @@ int scrub_and_clean(struct inode *parentInode, struct inode *childInode)
 	for (i = 0; i < childInode->i_blocks - 1; i++) {
 		char *block;
 
-		if(!file_block->blocks[i])
+		if (!file_block->blocks[i])
 			continue;
 
 		put_block(sbi, file_block->blocks[i]);
@@ -248,11 +248,10 @@ clean_inode:
 	/* Free inode and index block from bitmap */
 	put_block(sbi, bno);
 	put_inode(sbi, ino);
-        
-        pr_info("Target file deleted successfully!\n");
 
-        return 0;
+	pr_info("Target file deleted successfully!\n");
 
+	return 0;
 }
 
 int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
@@ -342,30 +341,30 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 			   umode_t mode, bool excl)
 {
 
-        struct super_block *sb;
+	struct super_block *sb;
 	struct inode *inode;
 	struct ouichefs_inode_info *ci_dir;
 	struct ouichefs_dir_block *dblock;
- 
+
 	char *fblock;
 	struct buffer_head *bh, *bh2;
 	int ret = 0, i;
 
-        /* testing the usage space */
-        if(check_limit(dir)){
-                if(clean_it(dir, partition)){
-                        pr_warning("Error during the partition cleaning!");
-                        return 1;                
-                }
-        }           
-        
-        /* testing the files number in the current dir */              
-        if(is_dir_full(dir)){
-                if(clean_it(dir, directory)){
-                        pr_warning("Error during the directory cleaning!");
-                        return 1;                
-                }
-        }
+	/* testing the usage space */
+	if (check_limit(dir)) {
+		if (clean_it(dir, partition)) {
+			pr_warning("Error during the partition cleaning!");
+			return 1;
+		}
+	}
+
+	/* testing the files number in the current dir */
+	if (is_dir_full(dir)) {
+		if (clean_it(dir, directory)) {
+			pr_warning("Error during the directory cleaning!");
+			return 1;
+		}
+	}
 
 
 	/* Check filename length */

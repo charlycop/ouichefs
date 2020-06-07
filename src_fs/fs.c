@@ -25,8 +25,8 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 			      const char *dev_name, void *data)
 {
 	struct dentry *dentry = NULL;
-        
-        policy = oldest;
+
+	policy = oldest;
 	dentry = mount_bdev(fs_type, flags, dev_name, data,
 			    ouichefs_fill_super);
 	if (IS_ERR(dentry))
@@ -57,11 +57,11 @@ static struct file_system_type ouichefs_file_system_type = {
 };
 
 // Syscall for user space cleanup
-extern long (*module_clear_ouichefs)(void); 
+extern long (*module_clear_ouichefs)(void);
 
-long custom_syscall(void) {
+long custom_syscall(void)
+{
 	pr_info("Executing clear_ouichefs system call\n");
-	// On appelle cleanIt mais avec quel TypePolicy ? Je le rajoute en paramètre de l'appel système ? (c'est qu'un int)
 	return 0;
 }
 
@@ -82,9 +82,9 @@ static int __init ouichefs_init(void)
 	}
 
 	module_clear_ouichefs = &(custom_syscall);
-	if(module_clear_ouichefs == NULL) {
+
+	if (module_clear_ouichefs == NULL)
 		pr_info("Syscall not wrapped\n");
-	}
 
 	pr_info("module loaded\n");
 end:
