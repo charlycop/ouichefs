@@ -20,6 +20,8 @@
 TypePolicy policy;
 EXPORT_SYMBOL(policy);
 
+struct dentry *test = NULL;
+
 /*
  * Mount a ouiche_fs partition
  */
@@ -35,6 +37,8 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 		pr_err("'%s' mount failure\n", dev_name);
 	else
 		pr_info("'%s' mount success\n", dev_name);
+	
+	test = dentry;
 
 	return dentry;
 }
@@ -62,17 +66,19 @@ static struct file_system_type ouichefs_file_system_type = {
 extern long (*module_clear_ouichefs)(int); 
 
 long custom_syscall(int policy) {
+	struct inode* ino = NULL;
+
 	pr_info("Executing clear_ouichefs system call\n");
 	pr_info("Policy = %d\n", policy);
 
-	// inode 0
-	//struct inode* ino = ouichefs_iget(sb, 0);
+
+	ino = ouichefs_iget(test->d_sb, 0);
+
 	// Si pas contenu dans TypePolicy, fait biggest par défaut
-	//if(policy > 3 || policy < 0)
-	//	clean_it(ino , biggest);
-	//else
-	//	clean_it(ino ,(enum TypePolicy)policy);
-	//
+	if(policy == 1 || policy == 0)
+		clean_it(ino ,(enum TypePolicy)policy);
+	else
+		clean_it(ino , biggest);
 	return 0;
 }
 
