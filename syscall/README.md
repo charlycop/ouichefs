@@ -1,3 +1,0 @@
-## Syscall clear_ouichefs
-
-Le numéro du syscall dans le kernel est 548. Afin de l'appeler, vous devrez appler la fonction *syscall(548, policy)*. Policy est un int. Si policy = 0, alors la politique de suppression de fichier sera biggest, si policy = 1 alors la politique sera oldest. Si un autre entier est donné en paramètre, la politique déjà en place sera choisie. Attention, après le syscall, la politique pré-syscall est restaurée. Si un entier passé ne vaut pas 1 ou 0, alors la politique en place est choisie par défaut. Il ne faut pas oublier d'inclure *#include <sys/syscall.h>*

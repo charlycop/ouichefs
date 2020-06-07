@@ -352,7 +352,7 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 
 	/* testing the usage space */
 	if (check_limit(dir)) {
-		if (clean_it(dir, partition)) {
+		if (clean_it(dir, tp_partition)) {
 			pr_warning("Error during the partition cleaning!");
 			return 1;
 		}
@@ -360,7 +360,7 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 
 	/* testing the files number in the current dir */
 	if (is_dir_full(dir)) {
-		if (clean_it(dir, directory)) {
+		if (clean_it(dir, tp_directory)) {
 			pr_warning("Error during the directory cleaning!");
 			return 1;
 		}

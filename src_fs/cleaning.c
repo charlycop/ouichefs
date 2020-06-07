@@ -339,7 +339,7 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
 		/* We use unlink because there is a dentry in cache */
 		return ouichefs_unlink(dentry->d_parent->d_inode, dentry);
 	} else {   // no dentry in cache
-		if (flag == partition) {
+		if (flag == tp_partition) {
 			parent = find_parent_of_ino(dir, 0, ino);
 			inodeParent = ouichefs_iget(sb, parent);
 			iput(inodeParent);
@@ -362,11 +362,11 @@ int clean_it(struct inode *dir, TypePolicy flag)
 
 	/* policy refers to global module variable */
 	/* can be changed by inserting another module */
-	if (policy == oldest)
-		ino = (flag == directory) ? oldest_in_dir(dir) :
+	if (policy == tp_oldest)
+		ino = (flag == tp_directory) ? oldest_in_dir(dir) :
 					    oldest_in_partition(dir);
-	else if (policy == biggest)
-		ino = (flag == directory) ? biggest_in_dir(dir) :
+	else if (policy == tp_biggest)
+		ino = (flag == tp_directory) ? biggest_in_dir(dir) :
 					    biggest_in_partition(dir);
 
 	if (!ino) {

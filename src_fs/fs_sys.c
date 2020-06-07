@@ -29,7 +29,7 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 			      const char *dev_name, void *data)
 {
 	struct dentry *dentry = NULL;
-	policy = oldest;
+	policy = tp_oldest;
 
 	dentry = mount_bdev(fs_type, flags, dev_name, data,
 			    ouichefs_fill_super);
@@ -69,8 +69,8 @@ long custom_syscall(int syscall_policy) {
 	struct inode* ino = NULL;
 	TypePolicy old_policy = policy;
 
-	if((enum TypePolicy)syscall_policy == oldest ||
-	   (enum TypePolicy)syscall_policy == biggest)
+	if((enum TypePolicy)syscall_policy == tp_oldest ||
+	   (enum TypePolicy)syscall_policy == tp_biggest)
 		policy = (enum TypePolicy)syscall_policy;
 
 	pr_info("Executing clear_ouichefs system call\n");
@@ -79,7 +79,7 @@ long custom_syscall(int syscall_policy) {
 
 	ino = ouichefs_iget(dentry_root->d_sb, 0);
 
-	if(clean_it(ino , partition) != 0) {
+	if(clean_it(ino , tp_partition) != 0) {
 		pr_info("Error in clean_it() called from syscall\n");
 	}
 
