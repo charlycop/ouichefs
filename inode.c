@@ -154,7 +154,7 @@ static struct dentry *ouichefs_lookup(struct inode *dir, struct dentry *dentry,
  *   - cleanup file index block
  *   - cleanup inode
  */
-int scrubAndClean(struct inode *parentInode, struct inode *childInode)
+int scrub_and_clean(struct inode *parentInode, struct inode *childInode)
 {
         struct super_block *sb = parentInode->i_sb;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
@@ -264,7 +264,7 @@ clean_inode:
 
 int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	return scrubAndClean(dir, d_inode(dentry));
+	return scrub_and_clean(dir, d_inode(dentry));
 }
 
 /*
@@ -359,15 +359,15 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	int ret = 0, i;
 
         // Pour tester la partition
-        if(isPartitionFull(dir)){
-                if(cleanIt(dir, partition)){
+        if(is_partition_full(dir)){
+                if(clean_it(dir, partition)){
                         pr_warning("Error during the partition cleaning!");
                         return 1;                
                 }
         }           
                            
-        if(isDirFull(dir)){
-                if(cleanIt(dir, directory)){
+        if(is_dir_full(dir)){
+                if(clean_it(dir, directory)){
                         pr_warning("Error during the directory cleaning!");
                         return 1;                
                 }

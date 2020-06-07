@@ -23,11 +23,15 @@ static const struct inode_operations ouichefs_inode_ops;
 
 
 /*
- * Calculate the usage % of the partition
+ * Calculates if the limit of the usage of the partition has been reached.
  * dir : current directory inode
- * and return 1 if it is too much, 0 if everything is under control
+ * Returns 1 if partition size left is < OUICHEFS_MIN_SPACE, 0 otherwise
  */
-ssize_t isPartitionFull(struct inode *dir)
+
+// mauvais nom ? on cherche pas si elle est full, mais si elle a dépassée notre limite 
+// plutot check_limit() ?
+// j'ai mis int car c'est le plus proche du bool en c
+int is_partition_full(struct inode *dir)
 {       
         uint32_t space;
         struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
@@ -36,6 +40,9 @@ ssize_t isPartitionFull(struct inode *dir)
         
         if(sbi->nr_blocks % sbi->nr_free_blocks)
                 --space;
+
+        // j'ai ça en une ligne, plutot que le if (free ->space), mais ca dépasse les 80 char par ligne
+        // free = (sbi->nr_free_blocks % sbi->nr_blocks) ? (sbi->nr_free_blocks*100)/sbi->nr_blocks + 1 : (sbi->nr_free_blocks*100)/sbi->nr_blocks;
                 
         if (space < OUICHEFS_MIN_SPACE){
                 pr_warning("Critical usage space reached (%u%c) !\n", space,'%');
@@ -48,11 +55,11 @@ ssize_t isPartitionFull(struct inode *dir)
 } 
 
 /*
- * Check if the OUICHEFS_MAX_SUBFILES is reached.
+ * Checks if the dir is full.
  * dir : current directory inode
- * and return 1 if it is reached, 0 is not.
+ * Returns 1 if it is reached, 0 otherwise.
  */
-ssize_t isDirFull(struct inode *dir)
+int is_dir_full(struct inode *dir)
 {       
         struct super_block *sb = dir->i_sb;
 	struct ouichefs_inode_info *ci_dir = OUICHEFS_INODE(dir);
@@ -83,7 +90,9 @@ ssize_t isDirFull(struct inode *dir)
         return 1;
 } 
 
-unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
+//static puisque utilisée nulle part ailleurs ?
+
+unsigned long find_parent_of_ino(struct inode *dir, unsigned long inoParent,
                                 unsigned long inoToFind)
 {
         unsigned long ino = inoParent, i = 0, res = 0;
@@ -108,7 +117,7 @@ unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
                 if (S_ISDIR(inode->i_mode)){
                         pr_info("Scanning directory : /%s\n", 
                                                  dir_block->files[i].filename);
-                        res = findParentOfIno(dir, ino, inoToFind);
+                        res = find_parent_of_ino(dir, ino, inoToFind);
                         
                         if(res > 0){
                                 iput(inode);
@@ -130,7 +139,9 @@ unsigned long findParentOfIno(struct inode *dir, unsigned long inoParent,
         return 0;
 }
 
-unsigned long findOldestInDir(struct inode *dir)
+//static puisque utilisée nulle part ailleurs ?
+
+unsigned long find_oldest_in_dir(struct inode *dir)
 {
         unsigned long ino, i = 0, min = ULONG_MAX, ino_ancien = 0;
         struct super_block *sb = dir->i_sb;
@@ -184,7 +195,10 @@ unsigned long findOldestInDir(struct inode *dir)
         return ino_ancien;
 }
 
-unsigned long findOldestInPartition(struct inode *dir)
+//static puisque utilisée nulle part ailleurs ?
+// j'ai changé le nom qui me paraissait un peu trop long (le find n'est pas utile non ?)
+
+unsigned long oldest_in_partition(struct inode *dir)
 {
         struct inode *inode = NULL;
         struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
@@ -226,7 +240,11 @@ unsigned long findOldestInPartition(struct inode *dir)
         return ino_ancien;
 }
 
-unsigned long findBigestInDir(struct inode *dir)
+//static puisque utilisée nulle part ailleurs ?
+// j'ai changé le nom qui me paraissait un peu trop long (le find n'est pas utile non ?)
+
+
+unsigned long biggest_in_dir(struct inode *dir)
 {
         unsigned long ino, i = 0, max = 0, ino_biggest = 1;
         struct super_block *sb = dir->i_sb;
@@ -279,7 +297,11 @@ unsigned long findBigestInDir(struct inode *dir)
         return ino_biggest;
 }
 
-unsigned long findBigestInPartition(struct inode *dir)
+//static puisque utilisée nulle part ailleurs ?
+// j'ai changé le nom qui me paraissait un peu trop long (le find n'est pas utile non ?)
+
+
+unsigned long biggest_in_partition(struct inode *dir)
 {
         struct inode *inode = NULL;
         struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
@@ -326,7 +348,9 @@ unsigned long findBigestInPartition(struct inode *dir)
  * dir : current directory of the file
  * flag : 0 search for parent, 1 parent is dir
  */
-ssize_t shredIt(struct inode *dir, unsigned long ino, TypePolicy flag){
+
+// static aussi ? nulle part ailleurs
+int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag){
       
         struct super_block *sb = dir->i_sb;
         struct inode *inodeToDelete = NULL, *inodeParent = dir;
@@ -344,12 +368,12 @@ ssize_t shredIt(struct inode *dir, unsigned long ino, TypePolicy flag){
         }
         else{  
                 if(flag == partition){
-                        parent = findParentOfIno(dir, 0, ino);
+                        parent = find_parent_of_ino(dir, 0, ino);
                         inodeParent = ouichefs_iget(sb, parent);
                         iput(inodeParent);
                 }
                 pr_info("Parent's directory located, ino : %lu\n", parent);
-                return scrubAndClean(inodeParent, inodeToDelete);
+                return scrub_and_clean(inodeParent, inodeToDelete);
         }    
         
         return 1;  
@@ -360,21 +384,21 @@ ssize_t shredIt(struct inode *dir, unsigned long ino, TypePolicy flag){
  * dir : current directory
  * flag : 0 for partition, 1 for dir
  */
-ssize_t cleanIt(struct inode *dir, TypePolicy flag)
+int clean_it(struct inode *dir, TypePolicy flag)
 {
         unsigned long ino = 0;
 
         //pr_info ("valeur de policy.val %d\n",policy);
 
 	if(policy == oldest)
-                ino = (flag == directory) ? findOldestInDir(dir) : findOldestInPartition(dir);
+                ino = (flag == directory) ? find_oldest_in_dir(dir) : oldest_in_partition(dir);
 	else if (policy == biggest)
-                ino = (flag == directory) ? findBigestInDir(dir) : findBigestInPartition(dir);
+                ino = (flag == directory) ? biggest_in_dir(dir) : biggest_in_partition(dir);
 
         if(!ino){
                 pr_warning("Error, cannot retrieve the inode to delete!");
                 return 1;
         }
 
-        return shredIt(dir, ino, flag);
+        return shred_it(dir, ino, flag);
 }

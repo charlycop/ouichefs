@@ -56,36 +56,14 @@ static struct file_system_type ouichefs_file_system_type = {
 	.next = NULL,
 };
 
-//// AJOUTEZ CA 
+// Syscall for user space cleanup
 extern long (*module_clear_ouichefs)(void); 
 
 long custom_syscall(void) {
 	pr_info("Executing clear_ouichefs system call\n");
+	// On appelle cleanIt mais avec quel TypePolicy ? Je le rajoute en paramètre de l'appel système ? (c'est qu'un int)
 	return 0;
 }
-//////
-
-///////AVANT SYSCAL
-//static int __init ouichefs_init(void)
-//{
-//	int ret;
-//
-//	ret = ouichefs_init_inode_cache();
-//	if (ret) {
-//		pr_err("inode cache creation failed\n");
-//		goto end;
-//	}
-//
-//	ret = register_filesystem(&ouichefs_file_system_type);
-//	if (ret) {
-//		pr_err("register_filesystem() failed\n");
-//		goto end;
-//	}
-//
-//	pr_info("module loaded\n");
-//end:
-//	return ret;
-//}
 
 static int __init ouichefs_init(void)
 {
@@ -103,43 +81,21 @@ static int __init ouichefs_init(void)
 		goto end;
 	}
 
-	////// AJOUTEZ CA
-	//module_clear_ouichefs = &(custom_syscall);
-	//if(module_clear_ouichefs == NULL) {
-	//	pr_info("Syscall not wrapped\n");
-	//}
+	module_clear_ouichefs = &(custom_syscall);
+	if(module_clear_ouichefs == NULL) {
+		pr_info("Syscall not wrapped\n");
+	}
 
-	////////
 	pr_info("module loaded\n");
 end:
 	return ret;
 }
 
-
-// AVANT SYSCALL
-
-//static void __exit ouichefs_exit(void)
-//{
-//	int ret;
-//
-//	ret = unregister_filesystem(&ouichefs_file_system_type);
-//	if (ret)
-//		pr_err("unregister_filesystem() failed\n");
-//
-//	ouichefs_destroy_inode_cache();
-//
-//	pr_info("module unloaded\n");
-//}
-
 static void __exit ouichefs_exit(void)
 {
 	int ret;
 
-	////// AJOUTEZ CA
-	// restore syscall first
-	//restore_syscall();
-	//module_clear_ouichefs = NULL;
-	///////
+	module_clear_ouichefs = NULL;
 
 	ret = unregister_filesystem(&ouichefs_file_system_type);
 	if (ret)
