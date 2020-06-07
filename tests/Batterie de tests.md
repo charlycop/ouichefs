@@ -41,7 +41,7 @@ Résultat de la <u>localisation du fichier le plus gros et de son parent dans l'
 
 Notre batterie de test à révéler un bug dans ouichefs. En effet, il est possible de créer et de stocker dans un dossier de la partition plus de données que la taille de la partition entière.
 
-![](/home/charlycop/Bureau/PNL/dev_env/share/ouichefs/tests/bug_rheda.png)
+![](bug_rheda.png)
 
 On voir sur le screenshot ci-dessus <u>le ouichefs de référence</u>. On stocke 61Mo dans le dossier /testBig alors que la partition fait 50Mo au total et qu'elle est notée comme 92% pleine.
 
