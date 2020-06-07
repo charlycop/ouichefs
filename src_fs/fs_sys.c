@@ -15,6 +15,8 @@
 #include "../src_mod/policy.h"
 
 // Allows to choose the cleaning policy with another module
+
+// EXPORTE 2x fois du coup (pas nécessaire ici non ?)
 TypePolicy policy;
 EXPORT_SYMBOL(policy);
 
@@ -56,11 +58,21 @@ static struct file_system_type ouichefs_file_system_type = {
 	.next = NULL,
 };
 
-extern long (*module_clear_ouichefs)(void);
+// Syscall ouichefs
+extern long (*module_clear_ouichefs)(int); 
 
-long custom_syscall(void)
-{
+long custom_syscall(int policy) {
 	pr_info("Executing clear_ouichefs system call\n");
+	pr_info("Policy = %d\n", policy);
+
+	// inode 0
+	//struct inode* ino = ouichefs_iget(sb, 0);
+	// Si pas contenu dans TypePolicy, fait biggest par défaut
+	//if(policy > 3 || policy < 0)
+	//	clean_it(ino , biggest);
+	//else
+	//	clean_it(ino ,(enum TypePolicy)policy);
+	//
 	return 0;
 }
 
@@ -80,9 +92,8 @@ static int __init ouichefs_init(void)
 		goto end;
 	}
 
-	////// AJOUTEZ CA
 	module_clear_ouichefs = &(custom_syscall);
-	if (module_clear_ouichefs == NULL) {
+	if(module_clear_ouichefs == NULL) {
 		pr_info("Syscall not wrapped\n");
 	}
 
@@ -95,12 +106,9 @@ end:
 static void __exit ouichefs_exit(void)
 {
 	int ret;
-
-	////// AJOUTEZ CA
-	// restore syscall first
-	//restore_syscall();
+	// restore syscall to Null when unloading module
 	module_clear_ouichefs = NULL;
-	///////
+
 
 	ret = unregister_filesystem(&ouichefs_file_system_type);
 	if (ret)
