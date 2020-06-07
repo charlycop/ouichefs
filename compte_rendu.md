@@ -53,10 +53,10 @@ Comme une inode à son compteur de référence incrémenté à chaque fois qu'un
 ---
 Notre objectif était qu’après l’insertion d’un module, nous puissions changer la politique de suppression et passer à la suppression des plus gros fichiers, soit dans le répertoire, soit dans la partition.
 
-Pour se faire, nous avons dû rajouter une variable global “policy” de type enum TypePolicy placée dans policy.h. Cette variable peut prendre 2 valeurs différentes en fonction de la politique de nettoyage après l’insertion du module: “biggest” ou “oldest” .
+Pour se faire, nous avons dû rajouter une variable global “policy” de type enum TypePolicy placée dans 'policy.h'. Cette variable peut prendre 2 valeurs différentes en fonction de la politique de nettoyage après l’insertion du module: “biggest” ou “oldest” .
 
-Afin que les fichiers inode.c et policy.c(notre module à insérer) puissent communiquer entre eux, policy est déclarée en extern.
-Lorsqu'on insère le module ouichefs, nous avons mis la variable policy dans un export_symbole dans le fichier fs.c. C'est ainsi que ouichefs peut prendre en compte la modification de policy lorsque celle-ci est modifiée par l'insertion d'un autre module.
+Afin que les fichiers 'inode.c' et 'policy.c' (notre module à insérer) puissent communiquer entre eux, policy est déclarée en extern.
+Lorsqu'on insère le module ouichefs, nous avons mis la variable policy dans un export_symbole dans le fichier 'fs.c'. C'est ainsi que ouichefs peut prendre en compte la modification de policy lorsque celle-ci est modifiée par l'insertion d'un autre module.
 
 ---
 
