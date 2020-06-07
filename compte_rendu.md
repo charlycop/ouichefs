@@ -58,6 +58,7 @@ Pour se faire, nous avons dû rajouter une variable global “policy” de type 
 Afin que les fichiers inode.c et policy.c(notre module à insérer) puissent communiquer entre eux, policy est déclarée en extern.
 Lorsqu'on insère le module ouichefs, nous avons mis la variable policy dans un export_symbole dans le fichier fs.c. C'est ainsi que ouichefs peut prendre en compte la modification de policy lorsque celle-ci est modifiée par l'insertion d'un autre module.
 
+---
 
 ### 2.2 Interaction user / fs
 
