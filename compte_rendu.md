@@ -53,3 +53,9 @@ Comme une inode à son compteur de référence incrémenté à chaque fois qu'un
 ---
 
 ### 2.2 Interaction user / fs
+
+---
+
+### 3 BUG DE OUICHEFS
+
+[Voir explication dans le fichier batterie_de_test.md](tests/Batterie de tests.md)
