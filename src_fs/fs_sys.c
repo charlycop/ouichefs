@@ -12,15 +12,14 @@
 #include <linux/fs.h>
 
 #include "ouichefs.h"
-#include "../src_mod/policy.h"
+#include "../src_mod/policy/policy.h"
 
 // Allows to choose the cleaning policy with another module
-
-// EXPORTE 2x fois du coup (pas nécessaire ici non ?)
 TypePolicy policy;
 EXPORT_SYMBOL(policy);
 
-static struct dentry *dentry_root = NULL;
+/* will be use for the syscall */
+static struct dentry *dentry_root;
 
 /*
  * Mount a ouiche_fs partition
@@ -37,7 +36,7 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 		pr_err("'%s' mount failure\n", dev_name);
 	else
 		pr_info("'%s' mount success\n", dev_name);
-	
+
 	dentry_root = dentry;
 
 	return dentry;
@@ -63,28 +62,37 @@ static struct file_system_type ouichefs_file_system_type = {
 };
 
 // Syscall ouichefs
-extern long (*module_clear_ouichefs)(int); 
+extern long (*module_clear_ouichefs)(int);
 
-long custom_syscall(int syscall_policy) {
-	struct inode* ino = NULL;
+/*
+ * Syscall, allows to clean the partition from user space
+ * syscall_policy : delete the biggest or the oldest inode.
+ * return 0 if success, anything else otherwise.
+*/
+long custom_syscall(int syscall_policy)
+{
+	struct inode *ino = NULL;
 	TypePolicy old_policy = policy;
+	int res;
 
-	if((enum TypePolicy)syscall_policy == tp_oldest ||
-	   (enum TypePolicy)syscall_policy == tp_biggest)
-		policy = (enum TypePolicy)syscall_policy;
+	/* modify the policy */
+	if (syscall_policy == tp_oldest || syscall_policy == tp_biggest)
+		policy = syscall_policy;
 
 	pr_info("Executing clear_ouichefs system call\n");
 	pr_info("Policy = %d\n", policy);
 
-
 	ino = ouichefs_iget(dentry_root->d_sb, 0);
 
-	if(clean_it(ino , tp_partition) != 0) {
+	/* launch the cleaning on the whole partition */
+	res = clean_it(ino, tp_partition);
+	if (res != 0)
 		pr_info("Error in clean_it() called from syscall\n");
-	}
 
+	/* put back the original policy */
 	policy = old_policy;
-	return 0;
+
+	return res;
 }
 
 static int __init ouichefs_init(void)
@@ -104,13 +112,13 @@ static int __init ouichefs_init(void)
 	}
 
 	module_clear_ouichefs = &(custom_syscall);
-	if(module_clear_ouichefs == NULL) {
-		pr_info("Syscall not wrapped\n");
-	}
 
-	////////
+	if (module_clear_ouichefs == NULL)
+		pr_info("Syscall not wrapped\n");
+
 	pr_info("module loaded\n");
-end:
+
+	end:
 	return ret;
 }
 

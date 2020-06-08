@@ -1,10 +1,20 @@
 > Charly Oudy 3414931
+> 
 > Hugo Lopes 3671195
+> 
 > Pierre-Louis Boeshertz 3670239
 
 # PNL - Projet 2019/2020
 
 ## ouiche_fs - le système de fichiers le plus classe du monde
+
+---
+
+Après compilation, deux modules sont créé :
+
+- ouichefs.ko : fonctionnant sur linux 4.19.3 original
+
+- ouichefs_sys.ko : incluant le syscall de la question 2.2, mais nécessitant de patcher le kernel.
 
 ---
 
@@ -51,6 +61,7 @@ Comme une inode à son compteur de référence incrémenté à chaque fois qu'un
 ### 2.1 Politique de suppression de fichiers
 
 ---
+
 Notre objectif était qu’après l’insertion d’un module, nous puissions changer la politique de suppression et passer à la suppression des plus gros fichiers, soit dans le répertoire, soit dans la partition.
 
 Pour se faire, nous avons dû rajouter une variable global “policy” de type enum TypePolicy placée dans `policy.h`. Cette variable peut prendre 2 valeurs différentes en fonction de la politique de nettoyage après l’insertion du module: “biggest” ou “oldest” .
@@ -72,4 +83,4 @@ Afin d'appliquer le patch, il suffit de lancer la commande *patch -p0 < XXX/ouic
 
 ### 3 BUG DE OUICHEFS
 
-[Voir explication dans le fichier batterie_de_test.md](tests/Batterie de tests.md)
+[Voir explication et script de reproduction dans le fichier tests/README.md](tests/README.md)
