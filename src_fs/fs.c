@@ -59,15 +59,6 @@ static struct file_system_type ouichefs_file_system_type = {
 	.next = NULL,
 };
 
-// Syscall for user space cleanup
-extern long (*module_clear_ouichefs)(void);
-
-long custom_syscall(void)
-{
-	pr_info("Executing clear_ouichefs system call\n");
-	return 0;
-}
-
 static int __init ouichefs_init(void)
 {
 	int ret;
@@ -84,11 +75,6 @@ static int __init ouichefs_init(void)
 		goto end;
 	}
 
-	module_clear_ouichefs = &(custom_syscall);
-
-	if (module_clear_ouichefs == NULL)
-		pr_info("Syscall not wrapped\n");
-
 	pr_info("module loaded\n");
 end:
 	return ret;
@@ -97,8 +83,6 @@ end:
 static void __exit ouichefs_exit(void)
 {
 	int ret;
-
-	module_clear_ouichefs = NULL;
 
 	ret = unregister_filesystem(&ouichefs_file_system_type);
 	if (ret)

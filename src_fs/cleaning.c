@@ -157,7 +157,7 @@ static unsigned long find_parent_of_ino(struct inode *dir,
 	while (i < OUICHEFS_MAX_SUBFILES && dir_block->files[i].inode != 0) {
 		ino = dir_block->files[i].inode;
 		inode = ouichefs_iget(sb, ino);
-
+                pr_info("Icount : %d\n",inode->i_count.counter);
 		// is it a directory OR (counter > 2 because there is a dentry)
 		//		   OR (counter > 1 because there is no dentry)
 		// is it a directory, or used by at least one user process
@@ -344,12 +344,15 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
                 
                 /* invalidate to be able to create same filename */ 
                                       
+//                dput(dentry);
+//                d_delete(dentry);
                 d_invalidate(dentry);
-
+                d_delete(dentry);
                 // fait chier au rmmod mais 
                 // 
                 iput(inodeToDelete);
-                // mark_inode_dirty_sync(inodeToDelete);
+                kfree(inodeToDelete);
+                
                 pr_info("icount = %d\n", inodeToDelete->i_count.counter);
 
 	} else {   // no dentry in cache

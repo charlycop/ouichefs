@@ -16,7 +16,8 @@
 #include "ouichefs.h"
 #include "bitmap.h"
 
-extern strategy policy; // Allows to choose the cleaning policy with another module
+// Allows inject a new cleaning policy with another module
+extern strategy policy; 
 
 static const struct inode_operations ouichefs_inode_ops;
 
@@ -257,8 +258,7 @@ clean_inode:
 }
 
 int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
-{
-                
+{                
         return scrub_and_clean(dir, d_inode(dentry));
 }
 
