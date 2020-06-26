@@ -38,12 +38,12 @@
 //typedef enum TypePolicy TypePolicy;
 
 /*typedef enum TypePolicy TypePolicy;*/
-typedef enum TypePolicy {
-                          tp_directory, 
-                          tp_partition
+typedef enum {
+          tp_directory, 
+          tp_partition
 }TypePolicy;
 
-typedef struct Strategy {
+typedef struct {
 
         unsigned long (*inDir)(struct inode*);
         unsigned long (*inPartition)(struct inode*);
