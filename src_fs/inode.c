@@ -116,7 +116,7 @@ static struct dentry *ouichefs_lookup(struct inode *dir, struct dentry *dentry,
 	/* Check filename length */
 	if (dentry->d_name.len > OUICHEFS_FILENAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
-
+        
 	/* Read the directory index block on disk */
 	bh = sb_bread(sb, ci_dir->index_block);
 	if (!bh)
@@ -131,6 +131,7 @@ static struct dentry *ouichefs_lookup(struct inode *dir, struct dentry *dentry,
 		if (!strncmp(f->filename, dentry->d_name.name,
 			     OUICHEFS_FILENAME_LEN)) {
 			inode = ouichefs_iget(sb, f->inode);
+                        pr_info("on a trouvé le fichier\n");
 			break;
 		}
 	}
@@ -141,8 +142,9 @@ static struct dentry *ouichefs_lookup(struct inode *dir, struct dentry *dentry,
 	mark_inode_dirty(dir);
 
 	/* Fill the dentry with the inode */
+        pr_info("dentry->d_name.name : %s\n",dentry->d_name.name);
 	d_add(dentry, inode);
-
+        pr_info("dentry->d_name.name : %s\n",dentry->d_name.name);
 	return NULL;
 }
 
@@ -256,7 +258,8 @@ clean_inode:
 
 int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	return scrub_and_clean(dir, d_inode(dentry));
+                
+        return scrub_and_clean(dir, d_inode(dentry));
 }
 
 /*
@@ -340,7 +343,6 @@ put_ino:
 static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 			   umode_t mode, bool excl)
 {
-
 	struct super_block *sb;
 	struct inode *inode;
 	struct ouichefs_inode_info *ci_dir;
@@ -350,19 +352,22 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	struct buffer_head *bh, *bh2;
 	int ret = 0, i;
 
+        pr_info("je rentre dans le ouichefs_create\n");
 	/* testing the usage space */
 	if (check_limit(dir)) {
 		if (clean_it(dir, tp_partition)) {
-			pr_warning("Error during the partition cleaning!");
-			return 1;
+			pr_warning("Error during the partition cleaning!\n");
+			ret = -EIO;
+                        goto cleanit_error;
 		}
 	}
 
 	/* testing the files number in the current dir */
 	if (is_dir_full(dir)) {
 		if (clean_it(dir, tp_directory)) {
-			pr_warning("Error during the directory cleaning!");
-			return 1;
+			pr_warning("Error during the directory cleaning!\n");
+			ret = -EIO;
+                        goto cleanit_error;
 		}
 	}
 
@@ -434,6 +439,8 @@ iput:
 	iput(inode);
 end:
 	brelse(bh);
+
+cleanit_error:
 	return ret;
 }
 

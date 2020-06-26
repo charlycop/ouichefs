@@ -170,6 +170,7 @@ static unsigned long oldest_in_dir(struct inode *dir)
 		}
 
 		/* check if it's the oldest */
+                pr_info("nsec = %ld - sec = %lld\n",inode->i_mtime.tv_nsec,inode->i_mtime.tv_sec);
 		if (inode->i_mtime.tv_sec < min) {
 			min = inode->i_mtime.tv_sec;
 			ino_ancien = ino;
@@ -193,7 +194,7 @@ static unsigned long oldest_in_partition(struct inode *dir)
 {
 	struct inode *inode = NULL;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
-	unsigned long ino = 0, min = ULONG_MAX, ino_ancien = 0;
+	signed long ino = 0, min = LONG_MAX, ino_ancien = 0;
 
 	while (++ino < sbi->nr_inodes) {
 		ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
@@ -204,14 +205,15 @@ static unsigned long oldest_in_partition(struct inode *dir)
 			// is it a directory OR (counter > 2 because these is a dentry)
 			//		   OR (counter > 1 because there is no dentry)
 			// is it a director, or used by at least one user process
-			if (S_ISDIR(inode->i_mode) ||
+			if (S_ISDIR(inode->i_mode) /*||
 			(inode->i_dentry.first != NULL && inode->i_count.counter > 2) ||
-			(inode->i_dentry.first == NULL && inode->i_count.counter > 1)) {
+			(inode->i_dentry.first == NULL && inode->i_count.counter > 1)*/) {
 				iput(inode);
 				continue;
 			}
 
 			/* check if it is the oldest */
+                        pr_info("nsec = %ld - sec = %lld\n",inode->i_mtime.tv_nsec,inode->i_mtime.tv_sec);
 			if (inode->i_mtime.tv_sec < min) {
 				min = inode->i_mtime.tv_sec;
 				ino_ancien = ino;
@@ -327,6 +329,7 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
 	struct super_block *sb = dir->i_sb;
 	struct inode *inodeToDelete = NULL, *inodeParent = dir;
 	struct dentry *dentry = NULL;
+        int res;
 	unsigned long parent = 0;
 
 	inodeToDelete = ouichefs_iget(sb, ino);
@@ -335,9 +338,20 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
 	if (inodeToDelete->i_dentry.first != NULL) { // dentry in cache
 		dentry = hlist_entry(inodeToDelete->i_dentry.first,
 					   struct dentry, d_u.d_alias);
+                
+	        /* We use unlink because there is a dentry in cache */
+                res = ouichefs_unlink(dentry->d_parent->d_inode, dentry);
+                
+                /* invalidate to be able to create same filename */ 
+                                      
+                d_invalidate(dentry);
 
-		/* We use unlink because there is a dentry in cache */
-		return ouichefs_unlink(dentry->d_parent->d_inode, dentry);
+                // fait chier au rmmod mais 
+                // 
+                iput(inodeToDelete);
+                // mark_inode_dirty_sync(inodeToDelete);
+                pr_info("icount = %d\n", inodeToDelete->i_count.counter);
+
 	} else {   // no dentry in cache
 		if (flag == tp_partition) {
 			parent = find_parent_of_ino(dir, 0, ino);
@@ -345,10 +359,10 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
 			iput(inodeParent);
 		}
 		pr_info("Parent's directory located, ino : %lu\n", parent);
-		return scrub_and_clean(inodeParent, inodeToDelete);
+		res = scrub_and_clean(inodeParent, inodeToDelete);
 	}
 
-	return 1;
+	return res;
 }
 
 /*
@@ -370,7 +384,7 @@ int clean_it(struct inode *dir, TypePolicy flag)
 					    biggest_in_partition(dir);
 
 	if (!ino) {
-		pr_warning("Error, cannot retrieve the inode to delete!");
+		pr_warning("Error, cannot delete the ino#0 (patition's root!");
 		return 1;
 	}
 
