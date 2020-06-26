@@ -12,10 +12,10 @@
 #include <linux/fs.h>
 
 #include "ouichefs.h"
-#include "../src_mod/policy/policy.h"
+//#include "../src_mod/policy/policy.h"
 
 // Allows to choose the cleaning policy with another module
-TypePolicy policy;
+strategy policy;
 EXPORT_SYMBOL(policy);
 
 /*
@@ -26,7 +26,10 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 {
 	struct dentry *dentry = NULL;
 
-	policy = tp_oldest;
+	//policy = tp_oldest;
+        policy.inDir = oldest_in_dir;
+        policy.inPartition = oldest_in_partition;
+
 	dentry = mount_bdev(fs_type, flags, dev_name, data,
 			    ouichefs_fill_super);
 	if (IS_ERR(dentry))

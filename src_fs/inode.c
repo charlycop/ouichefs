@@ -12,11 +12,11 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 
-#include "../src_mod/policy/policy.h"
+//#include "../src_mod/policy/policy.h"
 #include "ouichefs.h"
 #include "bitmap.h"
 
-extern TypePolicy policy; // Allows to choose the cleaning policy with another module
+extern strategy policy; // Allows to choose the cleaning policy with another module
 
 static const struct inode_operations ouichefs_inode_ops;
 
@@ -96,7 +96,7 @@ failed:
 	iget_failed(inode);
 	return ERR_PTR(ret);
 }
-
+EXPORT_SYMBOL(ouichefs_iget);
 /*
  * Look for dentry in dir.
  * Fill dentry with NULL if not in dir, with the corresponding inode if found.
