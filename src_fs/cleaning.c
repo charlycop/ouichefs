@@ -141,7 +141,11 @@ static unsigned long find_parent_of_ino(struct inode *dir,
  */
  unsigned long oldest_in_dir(struct inode *dir)
 {
-	unsigned long ino, i = 0, min_sec = ULONG_MAX, min_nsec= ULONG_MAX, ino_ancien = 0;
+	unsigned long ino, i = 0,
+                      min_sec = ULONG_MAX,
+                      min_nsec= ULONG_MAX,
+                      ino_ancien = 0;
+
 	struct super_block *sb = dir->i_sb;
 	struct buffer_head *bh = NULL;
 	struct ouichefs_dir_block *dir_block = NULL;
@@ -171,8 +175,6 @@ static unsigned long find_parent_of_ino(struct inode *dir,
 		}
 
 		/* check if it's the oldest */
-                //pr_info("nsec = %ld - sec = %lld\n",inode->i_mtime.tv_nsec,inode->i_mtime.tv_sec);
-
 		if (inode->i_mtime.tv_sec < min_sec ||
                     (inode->i_mtime.tv_sec == min_sec && 
                      inode->i_mtime.tv_nsec < min_nsec)) {
@@ -195,11 +197,14 @@ static unsigned long find_parent_of_ino(struct inode *dir,
  * dir : current directory inode
  * Returns ino if success, 0 otherwise.
  */
- unsigned long oldest_in_partition(struct inode *dir)
+unsigned long oldest_in_partition(struct inode *dir)
 {
 	struct inode *inode = NULL;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
-	signed long ino = 0, min = LONG_MAX, ino_ancien = 0;
+	unsigned long ino = 0,
+                      min_sec = ULONG_MAX,
+                      min_nsec= ULONG_MAX,
+                      ino_ancien = 0;
 
 	while (++ino < sbi->nr_inodes) {
 		ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
@@ -218,11 +223,13 @@ static unsigned long find_parent_of_ino(struct inode *dir,
 			}
 
 			/* check if it is the oldest */
-                        pr_info("nsec = %ld - sec = %lld\n",inode->i_mtime.tv_nsec,inode->i_mtime.tv_sec);
-			if (inode->i_mtime.tv_sec < min) {
-				min = inode->i_mtime.tv_sec;
-				ino_ancien = ino;
-			}
+		        if (inode->i_mtime.tv_sec < min_sec ||
+                            (inode->i_mtime.tv_sec == min_sec && 
+                             inode->i_mtime.tv_nsec < min_nsec)) {
+			        min_sec  = inode->i_mtime.tv_sec;
+                                min_nsec = inode->i_mtime.tv_nsec;
+			        ino_ancien = ino;
+		        }
 			iput(inode);
 		}
 	}
