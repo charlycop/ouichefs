@@ -12,9 +12,8 @@
 #include <linux/fs.h>
 
 #include "ouichefs.h"
-//#include "../src_mod/policy/policy.h"
 
-// Allows to choose the cleaning policy with another module
+/* Allows inject a new cleaning policy with another module */
 strategy policy;
 EXPORT_SYMBOL(policy);
 
@@ -25,10 +24,6 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 			      const char *dev_name, void *data)
 {
 	struct dentry *dentry = NULL;
-
-	//policy = tp_oldest;
-        policy.inDir = oldest_in_dir;
-        policy.inPartition = oldest_in_partition;
 
 	dentry = mount_bdev(fs_type, flags, dev_name, data,
 			    ouichefs_fill_super);
@@ -74,6 +69,10 @@ static int __init ouichefs_init(void)
 		pr_err("register_filesystem() failed\n");
 		goto end;
 	}
+
+        /* initialize the cleaning strategy (oldest file by default) */
+        policy.inDir = oldest_in_dir;
+        policy.inPartition = oldest_in_partition;
 
 	pr_info("module loaded\n");
 end:

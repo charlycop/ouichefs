@@ -244,6 +244,9 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_maxbytes = OUICHEFS_MAX_FILESIZE;
 	sb->s_op = &ouichefs_super_ops;
 
+        /* choose granularity of 1 NANOSECOND */
+        sb->s_time_gran = OUICHEFS_TIME_GRANULARITY;
+
 	/* Read sb from disk */
 	bh = sb_bread(sb, OUICHEFS_SB_BLOCK_NR);
 	if (!bh)

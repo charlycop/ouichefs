@@ -17,6 +17,9 @@
 #define OUICHEFS_MAX_SUBFILES           128
 #define OUICHEFS_MIN_SPACE               70
 
+/* TIME GRANULARITY OF OUICHEFS */
+#define OUICHEFS_TIME_GRANULARITY         1
+
 /*
  * CowFS partition layout
  *

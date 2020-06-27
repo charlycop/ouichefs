@@ -12,11 +12,10 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 
-//#include "../src_mod/policy/policy.h"
 #include "ouichefs.h"
 #include "bitmap.h"
 
-// Allows inject a new cleaning policy with another module
+/* Allows inject a new cleaning policy with another module */
 extern strategy policy; 
 
 static const struct inode_operations ouichefs_inode_ops;
@@ -98,6 +97,8 @@ failed:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(ouichefs_iget);
+
+
 /*
  * Look for dentry in dir.
  * Fill dentry with NULL if not in dir, with the corresponding inode if found.
@@ -132,7 +133,6 @@ static struct dentry *ouichefs_lookup(struct inode *dir, struct dentry *dentry,
 		if (!strncmp(f->filename, dentry->d_name.name,
 			     OUICHEFS_FILENAME_LEN)) {
 			inode = ouichefs_iget(sb, f->inode);
-                        pr_info("on a trouvé le fichier\n");
 			break;
 		}
 	}
@@ -143,9 +143,8 @@ static struct dentry *ouichefs_lookup(struct inode *dir, struct dentry *dentry,
 	mark_inode_dirty(dir);
 
 	/* Fill the dentry with the inode */
-        pr_info("dentry->d_name.name : %s\n",dentry->d_name.name);
 	d_add(dentry, inode);
-        pr_info("dentry->d_name.name : %s\n",dentry->d_name.name);
+
 	return NULL;
 }
 
@@ -320,7 +319,7 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 	}
 
 	inode->i_ctime = inode->i_atime = inode->i_mtime = current_time(inode);
-
+        pr_info("inode->i_sb->s_time_gran = %d\n",inode->i_sb->s_time_gran);
 	return inode;
 
 put_inode:
@@ -353,7 +352,8 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	int ret = 0, i;
 
         pr_info("je rentre dans le ouichefs_create\n");
-	/* testing the usage space */
+	
+        /* testing the usage space */
 	if (check_limit(dir)) {
 		if (clean_it(dir, tp_partition)) {
 			pr_warning("Error during the partition cleaning!\n");
