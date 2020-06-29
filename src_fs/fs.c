@@ -40,8 +40,7 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
  */
 void ouichefs_kill_sb(struct super_block *sb)
 {
-	kill_block_super(sb);
-
+        kill_block_super(sb);
 	pr_info("unmounted disk\n");
 }
 
@@ -86,9 +85,9 @@ static void __exit ouichefs_exit(void)
 	ret = unregister_filesystem(&ouichefs_file_system_type);
 	if (ret)
 		pr_err("unregister_filesystem() failed\n");
-
+        
 	ouichefs_destroy_inode_cache();
-
+                
 	pr_info("module unloaded\n");
 }
 

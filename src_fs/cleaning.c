@@ -30,7 +30,7 @@ int check_limit(struct inode *dir)
 {
 	uint32_t space;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
-
+        
 	/* calculate the available space in % */
 	space = (sbi->nr_free_blocks % sbi->nr_blocks) ?
 		(sbi->nr_free_blocks*100)/sbi->nr_blocks + 1 :
@@ -41,7 +41,7 @@ int check_limit(struct inode *dir)
 		return 1;
 	}
 
-	pr_info("Partition free space :  %u%c .... OK!\n", space, '%');
+	pr_info("Partition's free space checked :  %u%c .... OK!\n", space, '%');
 
 	return 0;
 }
@@ -73,7 +73,7 @@ int is_dir_full(struct inode *dir)
 	brelse(bh);
 
 	if (i < OUICHEFS_MAX_SUBFILES) {
-		pr_info("Subfiles quantity in this directory : %u .... OK!\n", i);
+		pr_info("Subfiles quantity checked : %u .... OK!\n", i);
 		return 0;
 	}
 
@@ -205,23 +205,28 @@ unsigned long oldest_in_partition(struct inode *dir)
                       min_sec = ULONG_MAX,
                       min_nsec= ULONG_MAX,
                       ino_ancien = 0;
-
+        
+        pr_info("on est la 1\n");
 	while (++ino < sbi->nr_inodes) {
-		ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
-
+                pr_info("on est la 2\n");		
+                ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
+                pr_info("on est la 3\n");
 		if (ino < sbi->nr_inodes) {
+                        pr_info("on est la 3a, avec ino %lu\n",ino);
 			inode = ouichefs_iget(dir->i_sb, ino);
-
+                        
+                        pr_info("on est la 3b\n");
 			// is it a directory OR (counter > 2 because these is a dentry)
 			//		   OR (counter > 1 because there is no dentry)
 			// is it a director, or used by at least one user process
 			if (S_ISDIR(inode->i_mode) ||
 			(inode->i_dentry.first != NULL && inode->i_count.counter > 2) ||
 			(inode->i_dentry.first == NULL && inode->i_count.counter > 1)) {
-				iput(inode);
+                                pr_info("on est la 3c\n");				
+                                iput(inode);
 				continue;
 			}
-
+                        pr_info("on est la 3d\n");
 			/* check if it is the oldest */
 		        if (inode->i_mtime.tv_sec < min_sec ||
                             (inode->i_mtime.tv_sec == min_sec && 
@@ -230,8 +235,11 @@ unsigned long oldest_in_partition(struct inode *dir)
                                 min_nsec = inode->i_mtime.tv_nsec;
 			        ino_ancien = ino;
 		        }
+                        pr_info("on est la 3e\n");
 			iput(inode);
+                        pr_info("on est la 3f\n");
 		}
+                pr_info("on est la 4\n");
 	}
 
 	pr_info("The partition's oldest file is ino #%lu\n", ino_ancien);
@@ -267,9 +275,9 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
 
                 /* because of the iget in lookup() */
                 iput(inodeToDelete); 
-                
-                /* free the inode in cahce to avoid rmmod error (kmemcache)*/
-                kfree(inodeToDelete), inodeToDelete = NULL;
+                dput(dentry);
+                /* free the inode in cache to avoid rmmod error (kfree)*/
+                //kfree(inodeToDelete), inodeToDelete = NULL;
 
 	} else {   // no dentry in cache
 		if (flag == tp_partition) {

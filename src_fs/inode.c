@@ -319,7 +319,7 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 	}
 
 	inode->i_ctime = inode->i_atime = inode->i_mtime = current_time(inode);
-        pr_info("inode->i_sb->s_time_gran = %d\n",inode->i_sb->s_time_gran);
+        //pr_info("inode->i_sb->s_time_gran = %d\n",inode->i_sb->s_time_gran);
 	return inode;
 
 put_inode:
@@ -351,7 +351,7 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	struct buffer_head *bh, *bh2;
 	int ret = 0, i;
 
-        pr_info("je rentre dans le ouichefs_create\n");
+        pr_info("Begin to create the %s file\n", dentry->d_name.name);
 	
         /* testing the usage space */
 	if (check_limit(dir)) {
@@ -430,7 +430,8 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 
 	/* setup dentry */
 	d_instantiate(dentry, inode);
-
+        
+        pr_info("%s file created successfully\n", dentry->d_name.name);
 	return 0;
 
 iput:
