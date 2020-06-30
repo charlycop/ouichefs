@@ -276,6 +276,7 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
                 /* because of the iget in lookup() */
                 iput(inodeToDelete); 
                 dput(dentry);
+                //list_del(&inodeToDelete->i_sb_list);
                 /* free the inode in cache to avoid rmmod error (kfree)*/
                 //kfree(inodeToDelete), inodeToDelete = NULL;
 
@@ -306,7 +307,7 @@ int clean_it(struct inode *dir, TypePolicy flag)
 					    policy.inPartition(dir);
 	
 	if (!ino) {
-		pr_warning("Error, cannot delete the ino#0 (patition's root!");
+		pr_warning("Error, cannot delete the ino#0 (partition's root!)\n");
 		return 1;
 	}
 
