@@ -77,14 +77,15 @@ unsigned long biggest_in_partition(struct inode *dir)
 {
 	struct inode *inode = NULL;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
-	unsigned long ino = 0, max = 0, ino_ancien = 0;
+	unsigned long ino = 0, max = 0, ino_big = 0,
+                        min_sec = ULONG_MAX, min_nsec= ULONG_MAX;
 
 	while (++ino < sbi->nr_inodes) {
 		ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
 
 		if (ino < sbi->nr_inodes) {
 			inode = ouichefs_iget(dir->i_sb, ino);
-
+                        pr_info("on visite inode : %ld\n",inode->i_ino);
 			// is it a directory OR (counter > 2 because these is a dentry)
 			//		   OR (counter > 1 because there is no dentry)
 			// is it a director, or used by at least one user process
@@ -95,18 +96,23 @@ unsigned long biggest_in_partition(struct inode *dir)
 				continue;
 			}
 
-			/* check if it is the biggest */
-			if (inode->i_size > max) {
+			/* check if it is the biggest if same size take the oldest*/
+			if (inode->i_size > max ||
+                            (inode->i_size == max && (inode->i_mtime.tv_sec < min_sec 
+                                || (inode->i_mtime.tv_sec == min_sec &&
+                                 inode->i_mtime.tv_nsec < min_nsec)))) {
 				max = inode->i_size;
-				ino_ancien = ino;
+                                min_sec  = inode->i_mtime.tv_sec;
+                                min_nsec = inode->i_mtime.tv_nsec;
+				ino_big = ino;
 			}
 			iput(inode);
 		}
 	}
 
-	pr_info("The biggest file is ino #%lu\n", ino_ancien);
+	pr_info("The biggest file is ino #%lu\n", ino_big);
 
-	return ino_ancien;
+	return ino_big;
 }
 
 

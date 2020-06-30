@@ -275,7 +275,7 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
 
                 /* because of the iget in lookup() */
                 iput(inodeToDelete); 
-                dput(dentry);
+                //dput(dentry);
                 //list_del(&inodeToDelete->i_sb_list);
                 /* free the inode in cache to avoid rmmod error (kfree)*/
                 //kfree(inodeToDelete), inodeToDelete = NULL;

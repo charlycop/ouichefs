@@ -43,6 +43,6 @@ Notre batterie de test à révéler un bug dans ouichefs. En effet, il est possi
 
 ![](1erefois_bug_apparent.png)
 
-On voir sur le screenshot ci-dessus <u>le ouichefs de référence</u>. On stocke 61Mo dans le dossier /testBig alors que la partition fait 50Mo au total et qu'elle est notée comme 92% pleine.
+On voir sur le screenshot ci-dessus <u>le ouichefs de référence</u>. On stocke 70Mo dans le dossier /testBig alors que la partition fait 50Mo au total et qu'elle est notée comme 100% pleine.
 
 Pour reproduire ce bug <u>sur le ouichefs original</u>, nous avons joint un script `bugouichefs.sh`.
