@@ -47,7 +47,8 @@ void ouichefs_kill_sb(struct super_block *sb)
         struct list_head *pos, *n;
 
         list_for_each_safe(pos,n, &sb->s_inodes)
-                list_del(pos);
+                if (list_entry(pos, struct inode, i_sb_list)->i_ino)
+                        list_del(pos);
 
         kill_block_super(sb);
 	pr_info("unmounted disk\n");
@@ -74,10 +75,8 @@ static ssize_t ouichefs_cleaning_store(struct kobject *kobj,
 	if((res = snprintf(phrase, count+1, buf)) < 0)
         	return -EINVAL;
 
-	if (!strcmp(phrase,"start\n")){
-                pr_info("phrase = %s", phrase);
+	if (!strcmp(phrase,"start\n"))
                 clean_it(root_dentry->d_inode, tp_partition);
-        }
 
 	return res;
 }
@@ -87,7 +86,7 @@ static struct kobj_attribute cleaning_attribute=__ATTR_WO(ouichefs_cleaning);
 
 static int __init ouichefs_init(void)
 {
-	int ret, retval;
+	int ret;
         ouichefs_destroy_inode_cache();
 	ret = ouichefs_init_inode_cache();
 	if (ret) {
@@ -101,7 +100,11 @@ static int __init ouichefs_init(void)
 		goto end;
 	}
 
-        retval = sysfs_create_file(kernel_kobj, &cleaning_attribute.attr);  
+        ret = sysfs_create_file(kernel_kobj, &cleaning_attribute.attr);
+        if (ret) {
+		pr_err("sysfs_create_file() failed\n");
+		goto end;
+	}
 
         /* initialize the cleaning strategy (oldest file by default) */
         policy.inDir = oldest_in_dir;
