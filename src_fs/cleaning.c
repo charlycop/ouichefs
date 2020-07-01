@@ -161,7 +161,6 @@ static unsigned long find_parent_of_ino(struct inode *dir,
 	while (i < OUICHEFS_MAX_SUBFILES && dir_block->files[i].inode != 0) {
 		ino = dir_block->files[i].inode;
 		inode = ouichefs_iget(sb, ino);
-                pr_info("Icount : %d\n",inode->i_count.counter);
 
 		// is it a directory OR (counter > 2 because there is a dentry)
 		//		   OR (counter > 1 because there is no dentry)
@@ -186,8 +185,11 @@ static unsigned long find_parent_of_ino(struct inode *dir,
 		++i;
 	}
 	brelse(bh);
-      
-	pr_info("Le plus ancien du dossier est l'ino #%lu\n", ino_ancien);
+        
+        if(!ino_ancien)
+	        pr_info("There is no file to delete in this directory !!\n");
+        else
+                pr_info("The oldest file in this directory is ino# %lu\n", ino_ancien);
 
 	return ino_ancien;
 }
@@ -206,27 +208,22 @@ unsigned long oldest_in_partition(struct inode *dir)
                       min_nsec= ULONG_MAX,
                       ino_ancien = 0;
         
-        pr_info("on est la 1\n");
 	while (++ino < sbi->nr_inodes) {
-                pr_info("on est la 2\n");		
                 ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
-                pr_info("on est la 3\n");
+
 		if (ino < sbi->nr_inodes) {
-                        pr_info("on est la 3a, avec ino %lu\n",ino);
 			inode = ouichefs_iget(dir->i_sb, ino);
                         
-                        pr_info("on est la 3b\n");
 			// is it a directory OR (counter > 2 because these is a dentry)
 			//		   OR (counter > 1 because there is no dentry)
 			// is it a director, or used by at least one user process
 			if (S_ISDIR(inode->i_mode) ||
 			(inode->i_dentry.first != NULL && inode->i_count.counter > 2) ||
 			(inode->i_dentry.first == NULL && inode->i_count.counter > 1)) {
-                                pr_info("on est la 3c\n");				
                                 iput(inode);
 				continue;
 			}
-                        pr_info("on est la 3d\n");
+
 			/* check if it is the oldest */
 		        if (inode->i_mtime.tv_sec < min_sec ||
                             (inode->i_mtime.tv_sec == min_sec && 
@@ -235,14 +232,15 @@ unsigned long oldest_in_partition(struct inode *dir)
                                 min_nsec = inode->i_mtime.tv_nsec;
 			        ino_ancien = ino;
 		        }
-                        pr_info("on est la 3e\n");
+
 			iput(inode);
-                        pr_info("on est la 3f\n");
 		}
-                pr_info("on est la 4\n");
 	}
 
-	pr_info("The partition's oldest file is ino #%lu\n", ino_ancien);
+	if(!ino_ancien)
+	        pr_info("There is no file to delete in this partition !!\n");
+        else
+                pr_info("The oldest file in this partition is ino# %lu\n", ino_ancien);
 
 	return ino_ancien;
 }
@@ -269,16 +267,15 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
                 
 	        /* We use unlink because there is a dentry in cache */
                 res = ouichefs_unlink(dentry->d_parent->d_inode, dentry);
-                pr_info("ON SUPPRIME : %s\n", dentry->d_name.name);
+                pr_info("Dentry in cache : ok to delete because i_count=%d\n",
+                                               inodeToDelete->i_count.counter);
+                pr_info("%s file successfully deleted\n", dentry->d_name.name);
+
                 /* invalidate to be able to create same filename */ 
                 d_invalidate(dentry);
 
                 /* because of the iget in lookup() */
                 iput(inodeToDelete); 
-                //dput(dentry);
-                //list_del(&inodeToDelete->i_sb_list);
-                /* free the inode in cache to avoid rmmod error (kfree)*/
-                //kfree(inodeToDelete), inodeToDelete = NULL;
 
 	} else {   // no dentry in cache
 		if (flag == tp_partition) {
@@ -287,6 +284,8 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
 			iput(inodeParent);
 		}
 		pr_info("Parent's directory located, ino : %lu\n", parent);
+                pr_info("No Dentry : ok to delete because i_count=%d\n",
+                               inodeToDelete->i_count.counter);
 		res = scrub_and_clean(inodeParent, inodeToDelete);
 	}
 
@@ -306,10 +305,8 @@ int clean_it(struct inode *dir, TypePolicy flag)
 	ino = (flag == tp_directory) ? policy.inDir(dir) :
 					    policy.inPartition(dir);
 	
-	if (!ino) {
-		pr_warning("Error, cannot delete the ino#0 (partition's root!)\n");
+	if (!ino)
 		return 1;
-	}
 
 	return shred_it(dir, ino, flag);
 }
