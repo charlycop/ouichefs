@@ -73,7 +73,8 @@ Lorsqu'on insère le module ouichefs, nous avons mis la variable policy dans un 
 
 ### 2.2 Interaction user / fs
 
---- INTERACTION SYSCALL - Laissée mais pas la meilleure ---
+#### --- INTERACTION SYSCALL - Laissée mais pas la meilleure ---
+
 Afin que l'utilisateur puisse déclencher lui-même le mécanisme de libération d'espace disque, nous avons décidé d'utiliser un appel système. Comme l'appel système nécessite un patch du noyau, nous avons décidé de créer un deuxième fichier fs.c, appelé fs_sys.c, afin que vous puissiez tester notre projet sans avoir à patcher votre noyau. Le patch est disponible dans src_mod/syscall/ .
 
 Le problème que nous avons lors de la création du syscall est que nous devons lancer clean_it() afin de déclencher le mécanisme de libération d'espace disque. Cependant, cette fonction est seulement disponible depuis le module, et donc pas depuis le répertoire du kernel; Nous avons donc du trouver un moyen de réussir à intercepter le syscall afin de lancer clean_it(). Vous verrez notre première tentative dans src_moc/syscall/syscall.c qui fonctionnait correctement mais qui nécessitait de changer le fichier .config. En effet, dans *kallsyms*, la *sys_call_table* ne s'y trouvait pas car *# CONFIG_KALLSYMS_ALL is not set*. Ne voulant pas modifier le fichier de config (qui est différent selon l'utilisateur qui va patcher son noyau), nous avons décidé de wrapper le syscall. Ceci est fait dans src_fs/fs_sys.c et nous permet d'appeler clean_it() depuis le user land.
