@@ -84,6 +84,8 @@ Afin d'appliquer le patch, il suffit de lancer la commande *patch -p0 < XXX/ouic
 #### Interaction SYSFS
 Comme l'interaction avec un syscall n'était pas la plus optimale côté user, nous avons décidé d'implémenter un sysfs. Avec le sysfs, il suffit de lancer la commande ouichefs (si le script shell est appliqué), ou sinon la commande *echo "" > /sys/kernel/ouichefs_sysfs*, afin de lancer le mécanisme de nettoyage de notre fs. L'utilisateur peut rajouter l'option -clean suivit de partition ou directory (*ouichefs -clean partition/directory*) pour sélectionner la stratégie de suppression. Le code du sysfs se trouve dans le fichier fs.c et le code du script dans .ouichefs_sysfs.sh. Afin que celui-ci marche comme une commande pour le user, il devra rajouter *source .ouichefs_sysfs.sh* afin de pouvoir l'exécuter.  
 
+Le script qui permet d'utiliser le sysfs comme une commande (et de ne pas devoir faire echo ... à chaque fois se trouve dans le répertoire src_mod/ . Attention, sans l'activation via la commande source, la commande ne marchera pas (l'utilisateur à le choix d'utiliser la commande ou de faire echo ...).
+
 ---
 
 ### 3 BUG DE OUICHEFS
