@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
-
+#include <linux/string.h>
 
 #include "ouichefs.h"
 
@@ -63,25 +63,110 @@ static struct file_system_type ouichefs_file_system_type = {
 	.next = NULL,
 };
 
-//----- SYSFS -----
-static ssize_t ouichefs_cleaning_store(struct kobject *kobj,
+//----- SYSFS ----- Partie 2.2
+static ssize_t ouichefs_sysfs_store(struct kobject *kobj,
                            struct kobj_attribute *attr,
                            const char *buf, size_t count)
 {   
+
+	char msg[strlen(buf)];
+	char *option = NULL; // option for dir/partition policy
+	int i;
+
+	snprintf(msg, count+1, buf);
+	//pr_info("Buf = %s, len = %lu\n\n MSG = %s, len = %lu\n Count = %lu\n", buf, strlen(buf), msg, strlen(msg), count);
+	//pr_info("buf[%lu] = %d\nmsg[%lu] = %d\n", count, (int)buf[count], count, (int)msg[count]);
 	
-	ssize_t res;
-	char phrase[30];
+	// Si contient un des types policy, l'applique
+	// directory policy	
+	if((option = strstr(msg, "-pd"))) 
+	{	
+		pr_info("/\\/\\ In dir /\\/\\\n");
 
-	if((res = snprintf(phrase, count+1, buf)) < 0)
-        	return -EINVAL;
+		// if ' ' is forgotten
+		if(*(option+3) != ' ')
+			option += 3;
+		// loop in case more than 1 ' ' 
+		else
+		{
+			i = 3;
+			while(*(option + (++i)) == ' ');
+			option += i;
+		}
 
-	if (!strcmp(phrase,"start\n"))
-                clean_it(root_dentry->d_inode, tp_partition);
+		// Policy change
+		if(*option == 'b') 
+		{
+			pr_info("Policy de dir = biggest\n");
+			//policy.inDir = biggest_in_dir;
+		}
+		else if(*option == 'o')
+		{
+			pr_info("Policy de dir = oldest\n");
+			policy.inDir = oldest_in_dir;
+		}
+		else
+			pr_info("Policy non reconnue, pas de changement\n");
+	}
 
-	return res;
+	// partition policy	
+	if((option = strstr(msg, "-pp"))) 
+	{	
+		pr_info("/\\/\\ In partition /\\/\\\n");
+		// if ' ' is forgotten
+		if(*(option+3) != ' ')
+			option += 3;
+		// loop in case more than 1 ' ' 
+		else
+		{
+			i = 3;
+			while(*(option + (++i)) == ' ');
+			option += i;
+		}
+
+		// changement de policy 
+		// Seulement biggest ou oldest do nc juste besoin de vérifier le premier char
+		if(*option == 'b') 
+		{
+			pr_info("Policy de partition = biggest\n");
+			//policy.inPartition = biggest_in_dir;
+		}
+		else if(*option == 'o')
+		{
+			pr_info("Policy de partition = oldest\n");
+			policy.inPartition = oldest_in_dir;
+		}
+		else
+			pr_info("Policy non reconnue, pas de changement\n");
+	}
+
+	// if contains clean, then apply it (after policy change)
+	if((option = strstr(msg, "-clean"))) 
+	{
+		// if ' ' is forgotten
+		if(*(option+6) != ' ')
+			option += 6;
+		// loop in case more than 1 ' ' 
+		else
+		{
+			i = 6;
+			while(*(option + (++i)) == ' ');
+			option += i;
+		}
+
+		pr_info("In CLEAN\n option = %c\n", *option);
+
+		if(*option == 'p')
+			clean_it(root_dentry->d_inode, tp_partition);
+		else if (*option == 'd') {
+			clean_it(root_dentry->d_inode, tp_directory);
+		}
+	}
+
+	return count;
 }
 
-static struct kobj_attribute cleaning_attribute=__ATTR_WO(ouichefs_cleaning); 
+static struct kobj_attribute ouichefs_sysfs=__ATTR_WO(ouichefs_sysfs); 
 // FIN SYSFS ------
 
 static int __init ouichefs_init(void)
@@ -100,8 +185,9 @@ static int __init ouichefs_init(void)
 		goto end;
 	}
 
-        ret = sysfs_create_file(kernel_kobj, &cleaning_attribute.attr);
-        if (ret) {
+    //ret = sysfs_create_file(kernel_kobj, &cleaning_attribute.attr);
+    ret = sysfs_create_file(kernel_kobj, &ouichefs_sysfs.attr);
+	if (ret) {
 		pr_err("sysfs_create_file() failed\n");
 		goto end;
 	}
@@ -123,8 +209,8 @@ static void __exit ouichefs_exit(void)
 	if (ret)
 		pr_err("unregister_filesystem() failed\n");
         
-	sysfs_remove_file(kernel_kobj, &cleaning_attribute.attr);
-
+	//sysfs_remove_file(kernel_kobj, &cleaning_attribute.attr);
+	sysfs_remove_file(kernel_kobj, &ouichefs_sysfs.attr);
 	pr_info("module unloaded\n");
 }
 
