@@ -71,14 +71,12 @@ static ssize_t ouichefs_sysfs_store(struct kobject *kobj,
 {   
 
 	char msg[strlen(buf)];
-	char *option = NULL; // option for dir/partition policy
+	char *option = NULL;
 	int i;
 
 	snprintf(msg, count+1, buf);
-	// if contains clean, then apply it (after policy change)
-	pr_info("Count = %llu\n", count);
 
-	// si rien donné en paramètre, clean la partition
+	// if no param given
 	if(count < 2)
 		clean_it(root_dentry->d_inode, tp_partition);
 
