@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/string.h>
+#include <linux/path.h>
 
 #include "ouichefs.h"
 
@@ -74,74 +75,14 @@ static ssize_t ouichefs_sysfs_store(struct kobject *kobj,
 	int i;
 
 	snprintf(msg, count+1, buf);
-	//pr_info("Buf = %s, len = %lu\n\n MSG = %s, len = %lu\n Count = %lu\n", buf, strlen(buf), msg, strlen(msg), count);
-	//pr_info("buf[%lu] = %d\nmsg[%lu] = %d\n", count, (int)buf[count], count, (int)msg[count]);
-	
-	// Si contient un des types policy, l'applique
-	// directory policy	
-	if((option = strstr(msg, "-pd"))) 
-	{	
-		pr_info("/\\/\\ In dir /\\/\\\n");
-
-		// if ' ' is forgotten
-		if(*(option+3) != ' ')
-			option += 3;
-		// loop in case more than 1 ' ' 
-		else
-		{
-			i = 3;
-			while(*(option + (++i)) == ' ');
-			option += i;
-		}
-
-		// Policy change
-		if(*option == 'b') 
-		{
-			pr_info("Policy de dir = biggest\n");
-			//policy.inDir = biggest_in_dir;
-		}
-		else if(*option == 'o')
-		{
-			pr_info("Policy de dir = oldest\n");
-			policy.inDir = oldest_in_dir;
-		}
-		else
-			pr_info("Policy non reconnue, pas de changement\n");
-	}
-
-	// partition policy	
-	if((option = strstr(msg, "-pp"))) 
-	{	
-		pr_info("/\\/\\ In partition /\\/\\\n");
-		// if ' ' is forgotten
-		if(*(option+3) != ' ')
-			option += 3;
-		// loop in case more than 1 ' ' 
-		else
-		{
-			i = 3;
-			while(*(option + (++i)) == ' ');
-			option += i;
-		}
-
-		// changement de policy 
-		// Seulement biggest ou oldest do nc juste besoin de vérifier le premier char
-		if(*option == 'b') 
-		{
-			pr_info("Policy de partition = biggest\n");
-			//policy.inPartition = biggest_in_dir;
-		}
-		else if(*option == 'o')
-		{
-			pr_info("Policy de partition = oldest\n");
-			policy.inPartition = oldest_in_dir;
-		}
-		else
-			pr_info("Policy non reconnue, pas de changement\n");
-	}
-
 	// if contains clean, then apply it (after policy change)
-	if((option = strstr(msg, "-clean"))) 
+	pr_info("Count = %llu\n", count);
+
+	// si rien donné en paramètre, clean la partition
+	if(count < 2)
+		clean_it(root_dentry->d_inode, tp_partition);
+
+	else if((option = strstr(msg, "-clean"))) 
 	{
 		// if ' ' is forgotten
 		if(*(option+6) != ' ')
@@ -159,6 +100,7 @@ static ssize_t ouichefs_sysfs_store(struct kobject *kobj,
 		if(*option == 'p')
 			clean_it(root_dentry->d_inode, tp_partition);
 		else if (*option == 'd') {
+			// get path from command line and find dentry associated
 			clean_it(root_dentry->d_inode, tp_directory);
 		}
 	}
