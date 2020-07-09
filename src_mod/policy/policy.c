@@ -6,15 +6,12 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 #include "../../src_fs/ouichefs.h"
-//#include "policy.h"
-
 
 extern strategy policy;
 
 MODULE_DESCRIPTION("Module for policy modification in OUICHEFS");
 MODULE_AUTHOR("Hugo Lopes, Pierre Boeshertz, Charly Oudy, SESI M1 2020");
 MODULE_LICENSE("GPL");
-
 
 
 /*
@@ -78,32 +75,35 @@ unsigned long biggest_in_partition(struct inode *dir)
 	struct inode *inode = NULL;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
 	unsigned long ino = 0, max = 0, ino_big = 0,
-                        min_sec = ULONG_MAX, min_nsec= ULONG_MAX;
+			min_sec = ULONG_MAX, min_nsec = ULONG_MAX;
 
 	while (++ino < sbi->nr_inodes) {
 		ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
 
 		if (ino < sbi->nr_inodes) {
 			inode = ouichefs_iget(dir->i_sb, ino);
-                        pr_info("on visite inode : %ld\n",inode->i_ino);
+
 			// is it a directory OR (counter > 2 because these is a dentry)
 			//		   OR (counter > 1 because there is no dentry)
 			// is it a director, or used by at least one user process
 			if (S_ISDIR(inode->i_mode) ||
-			(inode->i_dentry.first != NULL && inode->i_count.counter > 2) ||
-			(inode->i_dentry.first == NULL && inode->i_count.counter > 1)) {
+			(inode->i_dentry.first != NULL &&
+			inode->i_count.counter > 2) ||
+			(inode->i_dentry.first == NULL &&
+			inode->i_count.counter > 1)) {
 				iput(inode);
 				continue;
 			}
 
 			/* check if it is the biggest if same size take the oldest*/
 			if (inode->i_size > max ||
-                            (inode->i_size == max && (inode->i_mtime.tv_sec < min_sec 
-                                || (inode->i_mtime.tv_sec == min_sec &&
-                                 inode->i_mtime.tv_nsec < min_nsec)))) {
+				(inode->i_size == max &&
+				(inode->i_mtime.tv_sec < min_sec ||
+				(inode->i_mtime.tv_sec == min_sec &&
+				inode->i_mtime.tv_nsec < min_nsec)))) {
 				max = inode->i_size;
-                                min_sec  = inode->i_mtime.tv_sec;
-                                min_nsec = inode->i_mtime.tv_nsec;
+				min_sec  = inode->i_mtime.tv_sec;
+				min_nsec = inode->i_mtime.tv_nsec;
 				ino_big = ino;
 			}
 			iput(inode);
@@ -120,10 +120,10 @@ static strategy policy_old;
 
 static int __init hello_init(void)
 {
-        policy_old.inDir =policy.inDir;
-        policy_old.inPartition=policy.inPartition;
+	policy_old.inDir = policy.inDir;
+	policy_old.inPartition = policy.inPartition;
 	policy.inDir = biggest_in_dir;
-        policy.inPartition = biggest_in_partition;
+	policy.inPartition = biggest_in_partition;
 	pr_info("Changing cleaning policy : BIGGEST FILE\n");
 	return 0;
 }
@@ -132,7 +132,7 @@ module_init(hello_init);
 static void __exit hello_exit(void)
 {
 	policy.inDir = policy_old.inDir;
-        policy.inPartition = policy_old.inPartition;
+	policy.inPartition = policy_old.inPartition;
 	pr_info("Changing cleaning policy : OLDEST FILE\n");
 }
 module_exit(hello_exit);

@@ -196,7 +196,7 @@ static int ouichefs_sync_fs(struct super_block *sb, int wait)
 	ret = sync_ifree(sb, wait);
 	if (ret)
 		return ret;
-        ret = sync_bfree(sb, wait);
+	ret = sync_bfree(sb, wait);
 	if (ret)
 		return ret;
 
@@ -244,8 +244,9 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_maxbytes = OUICHEFS_MAX_FILESIZE;
 	sb->s_op = &ouichefs_super_ops;
 
-        /* choose granularity of 1 NANOSECOND */
-        sb->s_time_gran = OUICHEFS_TIME_GRANULARITY;
+	/* choose granularity of 1 NANOSECOND */
+	sb->s_time_gran = OUICHEFS_TIME_GRANULARITY;
+	pr_info("GRANULARITY MODIFIED FROM 1SEC (the worst) to 1NSEC!\n");
 
 	/* Read sb from disk */
 	bh = sb_bread(sb, OUICHEFS_SB_BLOCK_NR);

@@ -38,20 +38,16 @@
  *
  */
 
-//typedef enum TypePolicy TypePolicy;
-
 /*typedef enum TypePolicy TypePolicy;*/
 typedef enum {
-          tp_directory, 
-          tp_partition
-}TypePolicy;
+	tp_directory,
+	tp_partition
+} TypePolicy;
 
 typedef struct {
-
-        unsigned long (*inDir)(struct inode*);
-        unsigned long (*inPartition)(struct inode*);
-
-}strategy;
+	unsigned long (*inDir)(struct inode *);
+	unsigned long (*inPartition)(struct inode *);
+} strategy;
 
 struct ouichefs_inode {
 	uint32_t i_mode;	/* File mode */

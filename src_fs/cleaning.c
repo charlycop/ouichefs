@@ -30,7 +30,7 @@ int check_limit(struct inode *dir)
 {
 	uint32_t space;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
-        
+
 	/* calculate the available space in % */
 	space = (sbi->nr_free_blocks % sbi->nr_blocks) ?
 		(sbi->nr_free_blocks*100)/sbi->nr_blocks + 1 :
@@ -142,9 +142,9 @@ static unsigned long find_parent_of_ino(struct inode *dir,
  unsigned long oldest_in_dir(struct inode *dir)
 {
 	unsigned long ino, i = 0,
-                      min_sec = ULONG_MAX,
-                      min_nsec= ULONG_MAX,
-                      ino_ancien = 0;
+		      min_sec = ULONG_MAX,
+		      min_nsec = ULONG_MAX,
+		      ino_ancien = 0;
 
 	struct super_block *sb = dir->i_sb;
 	struct buffer_head *bh = NULL;
@@ -175,21 +175,21 @@ static unsigned long find_parent_of_ino(struct inode *dir,
 
 		/* check if it's the oldest */
 		if (inode->i_mtime.tv_sec < min_sec ||
-                    (inode->i_mtime.tv_sec == min_sec && 
-                     inode->i_mtime.tv_nsec < min_nsec)) {
+			(inode->i_mtime.tv_sec == min_sec &&
+			inode->i_mtime.tv_nsec < min_nsec)) {
 			min_sec  = inode->i_mtime.tv_sec;
-                        min_nsec = inode->i_mtime.tv_nsec;
+			min_nsec = inode->i_mtime.tv_nsec;
 			ino_ancien = ino;
 		}
 		iput(inode);
 		++i;
 	}
 	brelse(bh);
-        
-        if(!ino_ancien)
-	        pr_info("There is no file to delete in this directory !!\n");
-        else
-                pr_info("The oldest file in this directory is ino# %lu\n", ino_ancien);
+
+	if (!ino_ancien)
+		pr_info("There is no file to delete in this directory !!\n");
+	else
+		pr_info("The oldest file in this directory is ino# %lu\n", ino_ancien);
 
 	return ino_ancien;
 }
@@ -204,43 +204,43 @@ unsigned long oldest_in_partition(struct inode *dir)
 	struct inode *inode = NULL;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(dir->i_sb);
 	unsigned long ino = 0,
-                      min_sec = ULONG_MAX,
-                      min_nsec= ULONG_MAX,
-                      ino_ancien = 0;
-        
+		      min_sec = ULONG_MAX,
+		      min_nsec = ULONG_MAX,
+		      ino_ancien = 0;
+
 	while (++ino < sbi->nr_inodes) {
-                ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
+		ino = find_next_zero_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino);
 
 		if (ino < sbi->nr_inodes) {
 			inode = ouichefs_iget(dir->i_sb, ino);
-                        
+
 			// is it a directory OR (counter > 2 because these is a dentry)
 			//		   OR (counter > 1 because there is no dentry)
 			// is it a director, or used by at least one user process
 			if (S_ISDIR(inode->i_mode) ||
 			(inode->i_dentry.first != NULL && inode->i_count.counter > 2) ||
 			(inode->i_dentry.first == NULL && inode->i_count.counter > 1)) {
-                                iput(inode);
+				iput(inode);
 				continue;
 			}
 
 			/* check if it is the oldest */
-		        if (inode->i_mtime.tv_sec < min_sec ||
-                            (inode->i_mtime.tv_sec == min_sec && 
-                             inode->i_mtime.tv_nsec < min_nsec)) {
-			        min_sec  = inode->i_mtime.tv_sec;
-                                min_nsec = inode->i_mtime.tv_nsec;
-			        ino_ancien = ino;
-		        }
+			if (inode->i_mtime.tv_sec < min_sec ||
+				(inode->i_mtime.tv_sec == min_sec &&
+				inode->i_mtime.tv_nsec < min_nsec)) {
+				min_sec  = inode->i_mtime.tv_sec;
+				min_nsec = inode->i_mtime.tv_nsec;
+				ino_ancien = ino;
+			}
 
 			iput(inode);
 		}
 	}
 
-	if(!ino_ancien)
-	        pr_info("There is no file to delete in this partition !!\n");
-        else
-                pr_info("The oldest file in this partition is ino# %lu\n", ino_ancien);
+	if (!ino_ancien)
+		pr_info("There is no file to delete in this partition !!\n");
+	else
+		pr_info("The oldest file in this partition is ino# %lu\n", ino_ancien);
 
 	return ino_ancien;
 }
@@ -255,7 +255,7 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
 	struct super_block *sb = dir->i_sb;
 	struct inode *inodeToDelete = NULL, *inodeParent = dir;
 	struct dentry *dentry = NULL;
-        int res;
+	int res;
 	unsigned long parent = 0;
 
 	inodeToDelete = ouichefs_iget(sb, ino);
@@ -264,18 +264,18 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
 	if (inodeToDelete->i_dentry.first != NULL) { // dentry in cache
 		dentry = hlist_entry(inodeToDelete->i_dentry.first,
 					   struct dentry, d_u.d_alias);
-                
-	        /* We use unlink because there is a dentry in cache */
-                res = ouichefs_unlink(dentry->d_parent->d_inode, dentry);
-                pr_info("Dentry in cache : ok to delete because i_count=%d\n",
-                                               inodeToDelete->i_count.counter);
-                pr_info("%s file successfully deleted\n", dentry->d_name.name);
 
-                /* invalidate to be able to create same filename */ 
-                d_invalidate(dentry);
+		/* We use unlink because there is a dentry in cache */
+		res = ouichefs_unlink(dentry->d_parent->d_inode, dentry);
+		pr_info("Dentry in cache : ok to delete because i_count=%d\n",
+					       inodeToDelete->i_count.counter);
+		pr_info("%s file successfully deleted\n", dentry->d_name.name);
 
-                /* because of the iget in lookup() */
-                iput(inodeToDelete); 
+		/* invalidate to be able to create same filename */
+		d_invalidate(dentry);
+
+		/* because of the iget in lookup() */
+		iput(inodeToDelete);
 
 	} else {   // no dentry in cache
 		if (flag == tp_partition) {
@@ -284,8 +284,8 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
 			iput(inodeParent);
 		}
 		pr_info("Parent's directory located, ino : %lu\n", parent);
-                pr_info("No Dentry : ok to delete because i_count=%d\n",
-                               inodeToDelete->i_count.counter);
+		pr_info("No Dentry : ok to delete because i_count=%d\n",
+			       inodeToDelete->i_count.counter);
 		res = scrub_and_clean(inodeParent, inodeToDelete);
 	}
 
@@ -300,11 +300,11 @@ static int shred_it(struct inode *dir, unsigned long ino, TypePolicy flag)
 int clean_it(struct inode *dir, TypePolicy flag)
 {
 	unsigned long ino = 0;
-        
-        /* find the ino to delete */
+
+	/* find the ino to delete */
 	ino = (flag == tp_directory) ? policy.inDir(dir) :
-					    policy.inPartition(dir);
-	
+					policy.inPartition(dir);
+
 	if (!ino)
 		return 1;
 

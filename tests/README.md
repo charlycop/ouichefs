@@ -2,7 +2,7 @@
 
 ## Récapitulatif
 
-Nous avons écris un script SSH `test_bench.sh` nous permettant de faire des tests précis et répétable facilement.
+Nous avons écris un script SSH `test_file.sh` nous permettant de faire des tests précis et répétable facilement.
 
 |                                                                                                                                       | après création (avec dentry) | après reboot(sans dentry) |
 | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ------------------------- |

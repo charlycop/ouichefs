@@ -19,7 +19,7 @@
 strategy policy;
 EXPORT_SYMBOL(policy);
 
-static struct dentry *root_dentry = NULL;
+static struct dentry *root_dentry;
 
 /*
  * Mount a ouiche_fs partition
@@ -35,8 +35,8 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 		pr_err("'%s' mount failure\n", dev_name);
 	else
 		pr_info("'%s' mount success\n", dev_name);
-        
-        root_dentry = dentry;
+
+	root_dentry = dentry;
 	return dentry;
 }
 
@@ -45,13 +45,13 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
  */
 void ouichefs_kill_sb(struct super_block *sb)
 {
-        struct list_head *pos, *n;
+	struct list_head *pos, *n;
 
-        list_for_each_safe(pos,n, &sb->s_inodes)
-                if (list_entry(pos, struct inode, i_sb_list)->i_ino)
-                        list_del(pos);
+	list_for_each_safe(pos, n, &sb->s_inodes)
+		if (list_entry(pos, struct inode, i_sb_list)->i_ino)
+			list_del(pos);
 
-        kill_block_super(sb);
+	kill_block_super(sb);
 	pr_info("unmounted disk\n");
 }
 
@@ -66,38 +66,38 @@ static struct file_system_type ouichefs_file_system_type = {
 
 //----- SYSFS ----- Partie 2.2
 static ssize_t ouichefs_sysfs_store(struct kobject *kobj,
-                           struct kobj_attribute *attr,
-                           const char *buf, size_t count)
-{   
-
+			   struct kobj_attribute *attr,
+			   const char *buf, size_t count)
+{
 	char msg[strlen(buf)];
 	char *option = NULL;
 	int i;
 
 	snprintf(msg, count+1, buf);
+	option = strstr(msg, "-clean");
 
 	// if no param given
-	if(count < 2)
+	if (count < 2) {
 		clean_it(root_dentry->d_inode, tp_partition);
 
-	else if((option = strstr(msg, "-clean"))) 
-	{
+	} else if (option != NULL) {
 		// if ' ' is forgotten
-		if(*(option+6) != ' ')
+		if (*(option+6) != ' ') {
 			option += 6;
-		// loop in case more than 1 ' ' 
-		else
-		{
+
+		// loop in case more than 1 ' '
+		} else {
 			i = 6;
-			while(*(option + (++i)) == ' ');
+			while (*(option + (++i)) == ' ') {
+			}
 			option += i;
 		}
 
 		pr_info("In CLEAN\n option = %c\n", *option);
 
-		if(*option == 'p')
+		if (*option == 'p') {
 			clean_it(root_dentry->d_inode, tp_partition);
-		else if (*option == 'd') {
+		} else if (*option == 'd') {
 			// get path from command line and find dentry associated
 			clean_it(root_dentry->d_inode, tp_directory);
 		}
@@ -106,13 +106,13 @@ static ssize_t ouichefs_sysfs_store(struct kobject *kobj,
 	return count;
 }
 
-static struct kobj_attribute ouichefs_sysfs=__ATTR_WO(ouichefs_sysfs); 
+static struct kobj_attribute ouichefs_sysfs = __ATTR_WO(ouichefs_sysfs);
 // FIN SYSFS ------
 
 static int __init ouichefs_init(void)
 {
 	int ret;
-        ouichefs_destroy_inode_cache();
+	ouichefs_destroy_inode_cache();
 	ret = ouichefs_init_inode_cache();
 	if (ret) {
 		pr_err("inode cache creation failed\n");
@@ -125,17 +125,23 @@ static int __init ouichefs_init(void)
 		goto end;
 	}
 
-    //ret = sysfs_create_file(kernel_kobj, &cleaning_attribute.attr);
-    ret = sysfs_create_file(kernel_kobj, &ouichefs_sysfs.attr);
+
+	ret = sysfs_create_file(kernel_kobj, &ouichefs_sysfs.attr);
 	if (ret) {
 		pr_err("sysfs_create_file() failed\n");
 		goto end;
 	}
 
-        /* initialize the cleaning strategy (oldest file by default) */
-        policy.inDir = oldest_in_dir;
-        policy.inPartition = oldest_in_partition;
+	/* initialize the cleaning strategy (oldest file by default) */
+	policy.inDir = oldest_in_dir;
+	policy.inPartition = oldest_in_partition;
 
+	pr_info("Max partition usage set to %d%c\n",
+						100-OUICHEFS_MIN_SPACE, '%');
+	pr_info("Granularity modified for better accuracy(search old file)\n");
+	pr_info("if you didn't install the ouichefs_sysfs command line\n");
+	pr_info("please use this command to manually start the cleaning :\n");
+	pr_info("echo "" > /sys/kernel/ouichefs_sysfs\n");
 	pr_info("module loaded\n");
 end:
 	return ret;
@@ -148,7 +154,7 @@ static void __exit ouichefs_exit(void)
 	ret = unregister_filesystem(&ouichefs_file_system_type);
 	if (ret)
 		pr_err("unregister_filesystem() failed\n");
-        
+
 	//sysfs_remove_file(kernel_kobj, &cleaning_attribute.attr);
 	sysfs_remove_file(kernel_kobj, &ouichefs_sysfs.attr);
 	pr_info("module unloaded\n");

@@ -14,7 +14,7 @@ Après compilation, deux modules sont créé :
 
 - ouichefs.ko : fonctionnant sur linux 4.19.3 original
 
-- ouichefs_sys.ko : incluant le syscall de la question 2.2, mais nécessitant de patcher le kernel.
+- 
 
 ---
 
@@ -25,6 +25,10 @@ Après compilation, deux modules sont créé :
 ##### Stratégie générale
 
 L'idée de base est de placer dans la fonction `ouichefs_create()` une vérification de l'espace disque libre puis du nombre de fichiers dans le répertoire courant, afin de déclencher le nettoyage, soit du plus gros/plus vieux de la partition et/ou du répertoire courant.
+
+##### Modification de la granularité : un passage obligatoire
+
+Nous avons du modifier le champ `s_time_gran` de la structure `super_block`  de ouichefs afin de rapporter a une granularité de 1 nanoseconde (1 seconde par défaut), ce qui nous garantie que même lors de l'usage de nos scripts de créations de fichiers, nous choisissons toujours le plus ancien. En effet, certains étaient créés à la même seconde.
 
 ##### Détection du % de blocs libres
 
@@ -64,7 +68,7 @@ Comme une inode à son compteur de référence incrémenté à chaque fois qu'un
 
 Notre objectif était qu’après l’insertion d’un module, nous puissions changer la politique de suppression et passer à la suppression des plus gros fichiers, soit dans le répertoire, soit dans la partition.
 
-Pour ce faire nous avons du rajouter une variable global policy qui est une structure qui contient deux foncteur(pointeur de fonction) une pour la politique de netoyage dans la partition et une autre dans le directory et lors de l'insertion du module c'est ces pointeur de fonction que nous allons modifier donc mettre une nouvelle politique de netoyage dans notre cas passer de la recherche du plus ancien au plus gros fichiers. 
+Pour ce faire nous avons du rajouter une variable global policy qui est une structure qui contient deux foncteur(pointeur de fonction) une pour la politique de netoyage dans la partition et une autre dans le directory et lors de l'insertion du module c'est ces pointeur de fonction que nous allons modifier donc mettre une nouvelle politique de nettoyage dans notre cas passer de la recherche du plus ancien au plus gros fichiers. 
 
 Afin que les fichiers `inode.c` et `policy.c` (notre module à insérer) puissent communiquer entre eux, policy est déclarée en extern.
 Lorsqu'on insère le module ouichefs, nous avons mis la variable policy dans un export_symbole dans le fichier `fs.c`. C'est ainsi que ouichefs peut prendre en compte la modification de policy lorsque celle-ci est modifiée par l'insertion d'un autre module.
@@ -82,6 +86,7 @@ Le problème que nous avons lors de la création du syscall est que nous devons 
 Afin d'appliquer le patch, il suffit de lancer la commande *patch -p0 < XXX/ouichefs/src_mod/syscall/patchouichefs* depuis la racine du répertoire de votre kernel (obligatoire pour que ça marche). Le path de patchouichefs est évidemment relatif au path de votre répertoire de kernel . Le fichier testsyscall.c permet de tester le syscall depuis le kernel émulé via QEMU.
 
 #### Interaction SYSFS
+
 Comme l'interaction avec un syscall n'était pas la plus optimale côté user, nous avons décidé d'implémenter un sysfs. Avec le sysfs, il suffit de lancer la commande ouichefs (si le script shell est appliqué), ou sinon la commande *echo "" > /sys/kernel/ouichefs_sysfs*, afin de lancer le mécanisme de nettoyage de notre fs. L'utilisateur peut rajouter l'option -clean suivit de partition ou directory (*ouichefs -clean partition/directory*) pour sélectionner la stratégie de suppression. Le code du sysfs se trouve dans le fichier fs.c et le code du script dans .ouichefs_sysfs.sh. Afin que celui-ci marche comme une commande pour le user, il devra rajouter *source .ouichefs_sysfs.sh* afin de pouvoir l'exécuter.  
 
 Le script qui permet d'utiliser le sysfs comme une commande (et de ne pas devoir faire echo ... à chaque fois se trouve dans le répertoire src_mod/ . Attention, sans l'activation via la commande source, la commande ne marchera pas (l'utilisateur à le choix d'utiliser la commande ou de faire echo ...).

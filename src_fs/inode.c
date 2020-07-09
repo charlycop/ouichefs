@@ -16,7 +16,7 @@
 #include "bitmap.h"
 
 /* Allows inject a new cleaning policy with another module */
-extern strategy policy; 
+extern strategy policy;
 
 static const struct inode_operations ouichefs_inode_ops;
 
@@ -118,7 +118,7 @@ static struct dentry *ouichefs_lookup(struct inode *dir, struct dentry *dentry,
 	/* Check filename length */
 	if (dentry->d_name.len > OUICHEFS_FILENAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
-        
+
 	/* Read the directory index block on disk */
 	bh = sb_bread(sb, ci_dir->index_block);
 	if (!bh)
@@ -257,8 +257,8 @@ clean_inode:
 }
 
 int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
-{                
-        return scrub_and_clean(dir, d_inode(dentry));
+{
+	return scrub_and_clean(dir, d_inode(dentry));
 }
 
 /*
@@ -319,7 +319,7 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 	}
 
 	inode->i_ctime = inode->i_atime = inode->i_mtime = current_time(inode);
-        //pr_info("inode->i_sb->s_time_gran = %d\n",inode->i_sb->s_time_gran);
+
 	return inode;
 
 put_inode:
@@ -351,14 +351,14 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	struct buffer_head *bh, *bh2;
 	int ret = 0, i;
 
-        pr_info("Begin to create the %s file\n", dentry->d_name.name);
-	
-        /* testing the usage space */
+	pr_info("Begin to create the %s file\n", dentry->d_name.name);
+
+	/* testing the usage space */
 	if (check_limit(dir)) {
 		if (clean_it(dir, tp_partition)) {
 			pr_warning("Error during the partition cleaning!\n");
 			ret = -EIO;
-                        goto cleanit_error;
+			goto cleanit_error;
 		}
 	}
 
@@ -367,7 +367,7 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 		if (clean_it(dir, tp_directory)) {
 			pr_warning("Error during the directory cleaning!\n");
 			ret = -EIO;
-                        goto cleanit_error;
+			goto cleanit_error;
 		}
 	}
 
@@ -430,8 +430,8 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 
 	/* setup dentry */
 	d_instantiate(dentry, inode);
-        
-        pr_info("%s file created successfully\n", dentry->d_name.name);
+
+	pr_info("%s file created successfully\n", dentry->d_name.name);
 	return 0;
 
 iput:
